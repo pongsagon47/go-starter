@@ -1,0 +1,146 @@
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+tmp/
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage/
+coverage.html
+coverage.txt
+
+# Dependency directories
+vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.test
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Docker
+.docker/
+
+# Air (hot reload)
+tmp/
+build-errors.log
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Profiling files
+*.prof
+cpu.prof
+mem.prof
+trace.out
+
+# Documentation
+docs/_build/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Application specific
+main
+go-starter
+/bin/
+/build/
+
+# Redis dump files
+dump.rdb
+appendonly.aof
+
+# SSL Certificates (if any)
+*.pem
+*.crt
+*.key
+*.p12
+
+# Backup files
+*.backup
+*.bak
+
+# Process files
+*.pid
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+.nyc_output/
+
+# Compiled binary addons
+build/Release/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
