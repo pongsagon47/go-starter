@@ -133,7 +133,7 @@ func (f *ContainerFactory) CreateJWT() (*pkgAuth.JWT, error) {
 	}
 	refreshTTL := time.Duration(refreshHours) * time.Hour
 
-	issuer := "go-starter" // Default issuer (could be made configurable later)
+	issuer := f.config.AppName // Default issuer (could be made configurable later)
 
 	jwt := pkgAuth.NewJWT(f.config.JWT.Secret, accessTTL, refreshTTL, issuer)
 
