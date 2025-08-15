@@ -1279,7 +1279,7 @@ func getPrimaryKeyFields(data interface{}) string {
 
 	switch strategy {
 	case "uuid":
-		return `UUID      uuid.UUID ` + "`json:\"id\" gorm:\"type:varchar(36);primaryKey;not null\"`"
+		return `UUID      uuid.UUID ` + "`json:\"id\" gorm:\"type:varchar(36);unique;not null\"`"
 	case "dual":
 		return `ID        int       ` + "`json:\"-\" gorm:\"primaryKey;autoIncrement\"`" + `
 	UUID      uuid.UUID ` + "`json:\"id\" gorm:\"type:varchar(36);not null\"`"
@@ -1372,10 +1372,10 @@ func getMigrationPrimaryKeyFields(data interface{}) string {
 		switch strings.ToLower(dbType) {
 		case "postgresql", "postgres":
 			return `ID        int       ` + "`gorm:\"primaryKey\"`" + `
-	UUID      uuid.UUID ` + "`gorm:\"type:uuid;not null;default:gen_random_uuid()\"`"
+	UUID      uuid.UUID ` + "`gorm:\"type:uuid;unique;not null;default:gen_random_uuid()\"`"
 		default: // SQLite, MySQL
 			return `ID        int       ` + "`gorm:\"primaryKey\"`" + `
-	UUID      uuid.UUID ` + "`gorm:\"type:varchar(36);not null\"`"
+	UUID      uuid.UUID ` + "`gorm:\"type:varchar(36);unique;not null\"`"
 		}
 	default: // "int"
 		return `ID        int       ` + "`gorm:\"primaryKey\"`"
