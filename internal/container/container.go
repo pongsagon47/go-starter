@@ -1,7 +1,9 @@
 package container
 
 import (
+	"context"
 	"go-starter/config"
+	pkgAuth "go-starter/pkg/auth"
 	"go-starter/pkg/cache"
 	"go-starter/pkg/database"
 	"go-starter/pkg/logger"
@@ -12,105 +14,124 @@ import (
 	"gorm.io/gorm"
 )
 
+// Container implements ContainerInterface and holds all application dependencies
 type Container struct {
-	Config   *config.Config
-	DB       *gorm.DB
-	Database database.Database // Add database interface
-	Cache    cache.Cache       // Add Redis cache
+	Config *config.Config
+
+	// Core infrastructure
+	Database database.Database
+	Cache    cache.Cache
 	Mail     *mail.Mailer
 	Secure   *secure.Secure
+	JWT      *pkgAuth.JWT
 
-	// Add your repositories, usecases, and handlers here
-	// Example:
-	// UserRepository UserRepository
-	// UserUsecase    UserUsecase
-	// UserHandler    *UserHandler
+	// Backward compatibility (deprecated, use Database interface instead)
+	DB *gorm.DB
+
+	// Application services (registered via ServiceRegistry)
 }
 
-func NewContainer(cfg *config.Config) *Container {
-	// Initialize database using factory
-	factory := database.NewDatabaseFactory()
-	dbConfig := cfg.GetDatabaseConfig()
+// NewContainer creates a new container with all dependencies using the factory pattern
+func NewContainer(cfg *config.Config) (*Container, error) {
+	// Create factory
+	factory := NewContainerFactory(cfg)
 
-	db, err := factory.CreateDatabase(dbConfig)
+	// Create all dependencies
+	deps, err := factory.CreateAll()
 	if err != nil {
-		logger.Fatal("Failed to initialize database",
-			zap.Error(err),
-			zap.String("database_type", string(cfg.Database.Type)))
+		logger.Error("Failed to create container dependencies", zap.Error(err))
+		return nil, err
 	}
 
-	// Test database connection
-	if err := db.HealthCheck(); err != nil {
-		logger.Fatal("Database health check failed",
-			zap.Error(err),
-			zap.String("database_type", string(cfg.Database.Type)))
-	}
-
-	logger.Info("Database connected successfully",
-		zap.String("type", string(cfg.Database.Type)),
-		zap.String("connection", db.GetConnectionString()))
-
-	// Initialize mail
-	mail, err := mail.NewGomail(&cfg.Email)
-	if err != nil {
-		logger.Fatal("Failed to initialize email", zap.Error(err))
-	}
-
-	if err := mail.TestConnection(); err != nil {
-		logger.Fatal("Failed to test email connection", zap.Error(err))
-	}
-
-	logger.Info("Email connection successful")
-
-	// Initialize Redis cache (optional)
-	var cacheInstance cache.Cache
-	if cfg.Env == "production" || cfg.Redis.Host != "" {
-		var err error
-		cacheInstance, err = cache.NewCache(&cfg.Redis)
-		if err != nil {
-			logger.Warn("Failed to initialize Redis cache, continuing without cache", zap.Error(err))
-			cacheInstance = nil
-		} else {
-			logger.Info("Redis cache connected successfully",
-				zap.String("host", cfg.Redis.Host),
-				zap.Int("port", cfg.Redis.Port))
-		}
-	} else {
-		logger.Info("Redis cache disabled (development mode without Redis host)")
-		cacheInstance = nil
-	}
-
-	// Initialize secure
-	secure, err := secure.NewSecure(&cfg.Secure)
-	if err != nil {
-		logger.Fatal("Failed to initialize secure", zap.Error(err))
-	}
-
-	// Initialize your dependencies here
-	// Example:
-	// userRepository := user.NewUserRepository(db.GetDB())
-	// userUsecase := user.NewUserUsecase(cfg, userRepository, secure)
-	// userHandler := user.NewUserHandler(userUsecase)
-
-	return &Container{
+	// Create container with core dependencies
+	container := &Container{
 		Config:   cfg,
-		DB:       db.GetDB(),    // Keep GORM DB for backward compatibility
-		Database: db,            // New database interface
-		Cache:    cacheInstance, // Redis cache
-		Mail:     mail,
-		Secure:   secure,
-
-		// Add your dependencies here
-		// Example:
-		// UserRepository: userRepository,
-		// UserUsecase:    userUsecase,
-		// UserHandler:    userHandler,
+		Database: deps.Database,
+		Cache:    deps.Cache,
+		Mail:     deps.Mail,
+		Secure:   deps.Secure,
+		JWT:      deps.JWT,
+		DB:       deps.Database.GetDB(), // Backward compatibility
 	}
+
+	// Register application services
+	registry := NewServiceRegistry(container)
+	if err := registry.RegisterAll(); err != nil {
+		logger.Error("Failed to register services", zap.Error(err))
+		return nil, err
+	}
+
+	logger.Info("Container created successfully")
+	return container, nil
+}
+
+// MustNewContainer creates a new container or panics (for backward compatibility)
+func MustNewContainer(cfg *config.Config) *Container {
+	container, err := NewContainer(cfg)
+	if err != nil {
+		logger.Fatal("Failed to create container", zap.Error(err))
+	}
+	return container
+}
+
+// =============================================================================
+// ContainerInterface Implementation
+// =============================================================================
+
+// GetDatabase returns the database instance
+func (c *Container) GetDatabase() database.Database {
+	return c.Database
+}
+
+// GetCache returns the cache instance
+func (c *Container) GetCache() cache.Cache {
+	return c.Cache
+}
+
+// GetMail returns the mailer instance
+func (c *Container) GetMail() *mail.Mailer {
+	return c.Mail
+}
+
+// GetSecure returns the secure instance
+func (c *Container) GetSecure() *secure.Secure {
+	return c.Secure
+}
+
+// GetJWT returns the JWT instance
+func (c *Container) GetJWT() *pkgAuth.JWT {
+	return c.JWT
 }
 
 // GetDatabaseType returns the current database type
 func (c *Container) GetDatabaseType() database.DatabaseType {
 	return c.Database.GetDatabaseType()
+}
+
+// HealthCheck performs health check on all critical dependencies
+func (c *Container) HealthCheck(ctx context.Context) error {
+	// Check database health
+	if err := c.Database.HealthCheck(); err != nil {
+		logger.Error("Database health check failed", zap.Error(err))
+		return err
+	}
+
+	// Check cache health (if available)
+	if c.Cache != nil {
+		// TODO: Implement cache health check when available in cache interface
+		logger.Debug("Cache health check skipped (not implemented)")
+	}
+
+	// Check mail connection (optional)
+	if c.Mail != nil {
+		if err := c.Mail.TestConnection(); err != nil {
+			logger.Warn("Mail health check failed", zap.Error(err))
+			// Mail failure shouldn't fail the entire health check
+		}
+	}
+
+	logger.Info("Container health check passed")
+	return nil
 }
 
 // RunMigrations runs database migrations
@@ -127,23 +148,31 @@ func (c *Container) SeedData(seederName string) error {
 	return c.Database.SeedData(seederName)
 }
 
-// Close closes all container resources
+// Close closes all container resources gracefully
 func (c *Container) Close() error {
 	logger.Info("Closing container resources")
+
+	var lastError error
 
 	// Close cache connection if available
 	if c.Cache != nil {
 		if err := c.Cache.Close(); err != nil {
 			logger.Error("Failed to close cache", zap.Error(err))
+			lastError = err
 		}
 	}
 
 	// Close database connection
 	if err := c.Database.Close(); err != nil {
 		logger.Error("Failed to close database", zap.Error(err))
-		return err
+		lastError = err
 	}
 
-	logger.Info("Container resources closed successfully")
-	return nil
+	if lastError == nil {
+		logger.Info("Container resources closed successfully")
+	} else {
+		logger.Error("Container resources closed with errors", zap.Error(lastError))
+	}
+
+	return lastError
 }

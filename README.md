@@ -17,7 +17,9 @@ A production-ready Go starter template with **multi-database support** (MySQL, P
 
 ### 🎨 **Laravel-style CLI (Artisan)**
 
-- **Migrations** - Version control for database schema
+- **Dynamic Migration Discovery** - Auto-register migrations without rebuilding
+- **Multi-Database Templates** - SQLite/MySQL/PostgreSQL specific migration generation
+- **Primary Key Strategies** - Support for int, uuid, and dual (int+uuid) strategies
 - **Seeders** - Database seeding with dependency resolution
 - **Code Generation** - Auto-generate models, packages, migrations
 - **Database Management** - Create, drop, reset databases
@@ -25,18 +27,20 @@ A production-ready Go starter template with **multi-database support** (MySQL, P
 ### 🏗️ **Clean Architecture**
 
 - **Separation of Concerns** - Entity, Repository, Usecase, Handler layers
-- **Dependency Injection** - Container-based DI system
-- **Interface-based Design** - Easy testing and mocking
+- **Modern Dependency Injection** - Factory Pattern with Service Registry
+- **Interface-based Design** - Easy testing and mocking with ContainerInterface
+- **Graceful Error Handling** - Non-fatal error recovery and resource cleanup
 - **Domain-driven Design** - Business logic in the center
 
 ### ⚡ **Production Ready**
 
 - **Hot Reload** - Air/CompileDaemon integration
-- **Health Checks** - Database and application monitoring
-- **Error Handling** - Comprehensive error management
+- **Health Checks** - Built-in dependency health monitoring
+- **Error Helper Functions** - Convenient error creation and handling
 - **Logging** - Structured logging with Zap
 - **Security** - Helmet, CORS, input validation
 - **Email** - SMTP integration with templates
+- **JWT Authentication** - Complete authentication system with refresh tokens
 
 ---
 
@@ -61,14 +65,14 @@ cp env.example .env
 
 ```bash
 # SQLite (default, no setup required)
-export DB_TYPE=sqlite
+export DB_DRIVER=sqlite
 
 # MySQL
-export DB_TYPE=mysql
+export DB_DRIVER=mysql
 # Configure DB_MYSQL_* variables in .env
 
 # PostgreSQL
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 # Configure DB_POSTGRES_* variables in .env
 ```
 
@@ -94,8 +98,18 @@ curl http://localhost:8080/health
 # Database health
 curl http://localhost:8080/health/db
 
-# Demo endpoint
+# Demo endpoint with authentication info
 curl http://localhost:8080/api/v1/demo
+
+# Test authentication (register a user)
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","username":"testuser","password":"MySecure123!","first_name":"Test","last_name":"User"}'
+
+# Login and get access token
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email_or_username":"test@example.com","password":"MySecure123!"}'
 ```
 
 ---
@@ -126,7 +140,7 @@ make db-postgres run
 **SQLite** (Development)
 
 ```env
-DB_TYPE=sqlite
+DB_DRIVER=sqlite
 DB_SQLITE_FILE_PATH=./database.db
 DB_SQLITE_FOREIGN_KEYS=true
 DB_SQLITE_JOURNAL=WAL
@@ -135,7 +149,7 @@ DB_SQLITE_JOURNAL=WAL
 **MySQL** (Staging/Production)
 
 ```env
-DB_TYPE=mysql
+DB_DRIVER=mysql
 DB_MYSQL_HOST=localhost
 DB_MYSQL_PORT=3306
 DB_MYSQL_USER=root
@@ -148,7 +162,7 @@ DB_MYSQL_MAX_IDLE_CONNS=10
 **PostgreSQL** (Production)
 
 ```env
-DB_TYPE=postgresql
+DB_DRIVER=postgresql
 DB_POSTGRES_HOST=localhost
 DB_POSTGRES_PORT=5432
 DB_POSTGRES_USER=postgres
@@ -236,10 +250,11 @@ go-starter/
 ├── config/
 │   └── config.go               # Multi-database configuration
 ├── internal/
-│   ├── entity/                 # Domain entities
-│   ├── migrations/             # Database migrations
+│   ├── entity/                 # Domain entities (with primary key strategies)
+│   ├── auth/                   # Authentication system (repository, usecase, handler)
+│   ├── migrations/             # Database migrations (auto-discovery)
 │   ├── seeders/               # Database seeders
-│   ├── container/             # Dependency injection
+│   ├── container/             # Modern dependency injection (Factory + Registry)
 │   ├── router/                # HTTP routes
 │   └── middleware/            # HTTP middleware
 ├── pkg/
@@ -251,6 +266,8 @@ go-starter/
 │   │   └── sqlite.go          # SQLite implementation
 │   ├── migration/             # 🆕 Reusable migration engine
 │   ├── seeder/               # 🆕 Reusable seeder engine
+│   ├── auth/                  # 🆕 JWT authentication & authorization
+│   ├── errors/               # 🆕 Error helper functions
 │   ├── logger/               # Structured logging
 │   ├── mail/                 # Email functionality
 │   ├── secure/               # Security utilities
@@ -279,12 +296,69 @@ make test-coverage      # Run tests with coverage
 ### **Laravel-style Generators**
 
 ```bash
-make make-migration     # Create new migration file
-make make-seeder        # Create seeder with dependency support
-make make-entity        # Create new entity/model file
-make make-package       # Create new package (handler, usecase, repository, port)
-make make-model         # Create complete model stack (entity + migration + seeder)
+# Basic generators
+make make-migration NAME=create_posts_table CREATE=true TABLE=posts
+make make-seeder NAME=PostSeeder
+make make-entity NAME=Post
+make make-package NAME=Post
+
+# Advanced model generation with strategies
+make make-model NAME=User TABLE=users STRATEGY=dual     # int ID (primary) + UUID (public)
+make make-model NAME=Product TABLE=products STRATEGY=uuid  # UUID primary key only
+make make-model NAME=Category TABLE=categories           # int ID primary key (default)
+
+# With custom fields
+make make-model NAME=Post TABLE=posts FIELDS="title:string,content:text,user_id:uuid|fk:users"
 ```
+
+### **🔑 Primary Key Strategies**
+
+Choose the right primary key strategy for your use case:
+
+| Strategy   | Primary Key      | Public ID        | Use Case                           | Example              |
+| ---------- | ---------------- | ---------------- | ---------------------------------- | -------------------- |
+| **`int`**  | `ID int`         | `ID int`         | Internal systems, simple APIs      | Categories, Settings |
+| **`uuid`** | `UUID uuid.UUID` | `UUID uuid.UUID` | Distributed systems, external APIs | Products, Orders     |
+| **`dual`** | `ID int`         | `UUID uuid.UUID` | Best of both worlds                | Users, Posts         |
+
+#### **Strategy Details:**
+
+**🔢 `int` Strategy (Default)**
+
+```go
+type Category struct {
+    ID        int       `gorm:"primaryKey"`           // Primary key for DB relations
+    Name      string    `gorm:"not null"`
+    // ... other fields
+}
+```
+
+**🆔 `uuid` Strategy**
+
+```go
+type Product struct {
+    UUID      uuid.UUID `gorm:"type:varchar(36);primaryKey;not null"` // Primary key
+    Name      string    `gorm:"not null"`
+    // ... other fields
+}
+```
+
+**⚡ `dual` Strategy (Recommended)**
+
+```go
+type User struct {
+    ID        int       `gorm:"primaryKey"`           // Primary key for DB relations
+    UUID      uuid.UUID `json:"id" gorm:"type:varchar(36);not null"` // Public ID in JSON
+    Email     string    `gorm:"unique;not null"`
+    // ... other fields
+}
+```
+
+#### **When to Use Each Strategy:**
+
+- **`int`**: Simple internal systems, admin panels, configuration tables
+- **`uuid`**: Microservices, public APIs, distributed systems, external integrations
+- **`dual`**: User-facing applications where you need both performance (int) and security (UUID)
 
 ### **Database Management**
 
@@ -406,9 +480,9 @@ go test ./internal/entity/...
 make test-all-db
 
 # Test specific database
-DB_TYPE=sqlite make migrate-status
-DB_TYPE=mysql make migrate-status
-DB_TYPE=postgresql make migrate-status
+DB_DRIVER=sqlite make migrate-status
+DB_DRIVER=mysql make migrate-status
+DB_DRIVER=postgresql make migrate-status
 ```
 
 ---
@@ -455,12 +529,12 @@ SERVER_HOST=0.0.0.0
 SERVER_PORT=8080
 
 # Database Type Selection
-DB_TYPE=sqlite  # mysql, postgresql, sqlite
+DB_DRIVER=sqlite  # mysql, postgresql, sqlite
 ```
 
 ### **Database-Specific Settings**
 
-Each database type has its own configuration section in `env.example`. Only the settings for your selected `DB_TYPE` are used.
+Each database type has its own configuration section in `env.example`. Only the settings for your selected `DB_DRIVER` are used.
 
 ### **Production Considerations**
 
@@ -502,13 +576,26 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **[Database Drivers](./pkg/database/)** - Multi-database implementation details
 - **[Migration Engine](./pkg/migration/)** - Reusable migration system
 - **[Seeder Engine](./pkg/seeder/)** - Dependency-aware seeding system
+- **[Container System](./internal/container/)** - Modern dependency injection with Factory Pattern
+- **[Error Helpers](./pkg/errors/)** - Convenient error handling functions
+- **[Authentication](./pkg/auth/)** - JWT authentication and authorization
 - **[Clean Architecture](./internal/)** - Project structure and patterns
 
 ---
 
-## 🔒 Security
+## 🔒 Security & Authentication
 
-Go Starter includes built-in security features:
+Go Starter includes comprehensive security and authentication features:
+
+### **🔐 JWT Authentication System**
+
+- 🎫 **Access Tokens** - Short-lived tokens for API access
+- 🔄 **Refresh Tokens** - Long-lived tokens for renewal
+- 👤 **User Registration/Login** - Complete authentication flow
+- 🚪 **Logout** - Secure token invalidation
+- 🛡️ **Role-based Authorization** - Permission-based access control
+
+### **🛡️ Security Features**
 
 - 🛡️ **Rate Limiting** - DDoS protection (Redis-based)
 - 🔐 **Session Management** - Secure Redis sessions
@@ -516,6 +603,24 @@ Go Starter includes built-in security features:
 - 🛡️ **Security Headers** - Helmet middleware
 - ✅ **Input Validation** - Request data validation
 - 📊 **Audit Logging** - Security event tracking
+- 🔒 **Password Hashing** - bcrypt with salt rounds
+
+### **🚀 Quick Authentication Setup**
+
+```bash
+# Your authentication system is ready to use!
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","username":"user","password":"MySecure123!","first_name":"John","last_name":"Doe"}'
+
+curl -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email_or_username":"user@example.com","password":"MySecure123!"}'
+
+# Use the access token for protected endpoints
+curl -X GET http://localhost:8080/api/v1/auth/me \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
 
 For security issues, please see [SECURITY.md](SECURITY.md).
 

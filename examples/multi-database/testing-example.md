@@ -25,7 +25,7 @@ This example demonstrates comprehensive testing strategies for multi-database ap
 
 ```bash
 # Configuration for unit tests
-export DB_TYPE=sqlite
+export DB_DRIVER=sqlite
 export DB_SQLITE_IN_MEMORY=true
 export DB_SQLITE_FILE_PATH=":memory:"
 
@@ -46,7 +46,7 @@ make test
 
 ```bash
 # Configuration for integration tests
-export DB_TYPE=mysql
+export DB_DRIVER=mysql
 export DB_MYSQL_HOST=localhost
 export DB_MYSQL_NAME=test_integration
 export DB_MYSQL_USER=test_user
@@ -69,7 +69,7 @@ make test-integration
 
 ```bash
 # Configuration for E2E tests
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 export DB_POSTGRES_HOST=test-postgres
 export DB_POSTGRES_NAME=test_e2e
 export DB_POSTGRES_USER=test_user
@@ -258,17 +258,17 @@ func setupPostgreSQLTestDB(t *testing.T) *gorm.DB {
 ## Run unit tests with SQLite
 test:
 	@echo "🧪 Running unit tests with SQLite..."
-	@DB_TYPE=sqlite DB_SQLITE_IN_MEMORY=true go test -v -short ./...
+	@DB_DRIVER=sqlite DB_SQLITE_IN_MEMORY=true go test -v -short ./...
 
 ## Run integration tests with MySQL
 test-integration:
 	@echo "🔧 Running integration tests with MySQL..."
-	@DB_TYPE=mysql go test -v -tags=integration ./...
+	@DB_DRIVER=mysql go test -v -tags=integration ./...
 
 ## Run E2E tests with PostgreSQL
 test-e2e:
 	@echo "🌐 Running E2E tests with PostgreSQL..."
-	@DB_TYPE=postgresql go test -v -tags=e2e ./...
+	@DB_DRIVER=postgresql go test -v -tags=e2e ./...
 
 ## Run all tests
 test-all:
@@ -280,12 +280,12 @@ test-all:
 ## Run performance tests
 test-performance:
 	@echo "📊 Running performance tests..."
-	@DB_TYPE=postgresql go test -v -tags=performance -bench=. ./...
+	@DB_DRIVER=postgresql go test -v -tags=performance -bench=. ./...
 
 ## Run tests with coverage
 test-coverage:
 	@echo "📈 Running tests with coverage..."
-	@DB_TYPE=sqlite DB_SQLITE_IN_MEMORY=true go test -v -short -coverprofile=coverage.out ./...
+	@DB_DRIVER=sqlite DB_SQLITE_IN_MEMORY=true go test -v -short -coverprofile=coverage.out ./...
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 ```
@@ -296,7 +296,7 @@ test-coverage:
 
 ```env
 # Unit test configuration
-DB_TYPE=sqlite
+DB_DRIVER=sqlite
 DB_SQLITE_IN_MEMORY=true
 LOG_LEVEL=error
 ```
@@ -305,7 +305,7 @@ LOG_LEVEL=error
 
 ```env
 # Integration test configuration
-DB_TYPE=mysql
+DB_DRIVER=mysql
 DB_MYSQL_HOST=localhost
 DB_MYSQL_PORT=3306
 DB_MYSQL_USER=test_user
@@ -318,7 +318,7 @@ LOG_LEVEL=warn
 
 ```env
 # E2E test configuration
-DB_TYPE=postgresql
+DB_DRIVER=postgresql
 DB_POSTGRES_HOST=localhost
 DB_POSTGRES_PORT=5432
 DB_POSTGRES_USER=test_user
@@ -618,7 +618,7 @@ func CreateTestUser(overrides ...func(*User)) *User {
 ```go
 // Test database-specific features
 func TestPostgreSQLJSONB(t *testing.T) {
-    if os.Getenv("DB_TYPE") != "postgresql" {
+    if os.Getenv("DB_DRIVER") != "postgresql" {
         t.Skip("PostgreSQL-specific test")
     }
 
@@ -626,7 +626,7 @@ func TestPostgreSQLJSONB(t *testing.T) {
 }
 
 func TestMySQLFullText(t *testing.T) {
-    if os.Getenv("DB_TYPE") != "mysql" {
+    if os.Getenv("DB_DRIVER") != "mysql" {
         t.Skip("MySQL-specific test")
     }
 

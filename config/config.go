@@ -141,7 +141,7 @@ func Load() *Config {
 
 	return &Config{
 		Database: MultiDatabaseConfig{
-			Type: database.DatabaseType(getEnv("DB_TYPE", "mysql")),
+			Type: database.DatabaseType(getEnv("DB_DRIVER", "mysql")),
 			MySQL: MySQLDatabaseConfig{
 				Host:            getEnv("DB_MYSQL_HOST", "localhost"),
 				Port:            getEnvAsInt("DB_MYSQL_PORT", 3306),

@@ -4,8 +4,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -14,7 +16,7 @@ import (
 	pkgDatabase "go-starter/pkg/database"
 	"go-starter/pkg/logger"
 
-	// Import to register migrations and seeders
+	// Dynamic import for migrations - will be included when migrations exist
 	_ "go-starter/internal/migrations"
 	_ "go-starter/internal/seeders"
 
@@ -23,14 +25,16 @@ import (
 )
 
 var (
-	action = flag.String("action", "", "Action: make:migration, make:seeder, make:model, make:package, migrate, migrate:rollback, migrate:status")
-	name   = flag.String("name", "", "Migration/Seeder/Model/Package name")
-	table  = flag.String("table", "", "Table name for migration")
-	create = flag.Bool("create", false, "Create table migration")
-	fields = flag.String("fields", "", "Fields for migration (name:type,email:string)")
-	deps   = flag.String("deps", "", "Dependencies for seeder (UserSeeder,CategorySeeder)") // เพิ่มบรรทัดนี้
-	count  = flag.String("count", "1", "Number of migrations to rollback")
-	help   = flag.Bool("help", false, "Show help")
+	action     = flag.String("action", "", "Action: make:migration, make:seeder, make:model, make:package, migrate, migrate:rollback, migrate:status")
+	name       = flag.String("name", "", "Migration/Seeder/Model/Package name")
+	table      = flag.String("table", "", "Table name for migration")
+	create     = flag.Bool("create", false, "Create table migration")
+	fields     = flag.String("fields", "", "Fields for migration (name:type,email:string)")
+	deps       = flag.String("deps", "", "Dependencies for seeder (UserSeeder,CategorySeeder)")
+	strategy   = flag.String("strategy", "int", "Primary key strategy: int, uuid, dual (default: int)")
+	count      = flag.String("count", "1", "Number of migrations to rollback")
+	skipEntity = flag.Bool("skip-entity", false, "Skip auto-creating entity in migration")
+	help       = flag.Bool("help", false, "Show help")
 )
 
 func main() {
@@ -48,7 +52,7 @@ func main() {
 			fmt.Println("Usage: go run cmd/artisan/main.go -action=make:migration -name=migration_name -table=table_name")
 			os.Exit(1)
 		}
-		createMigration(*name, *table, *create, *fields)
+		createMigration(*name, *table, *create, *fields, *skipEntity)
 
 	case "make:seeder":
 		if *name == "" {
@@ -94,7 +98,7 @@ func main() {
 }
 
 // createMigration function in main.go
-func createMigration(migrationName, tableName string, isCreate bool, fieldList string) {
+func createMigration(migrationName, tableName string, isCreate bool, fieldList string, skipEntity bool) {
 	timestamp := time.Now().Format("2006_01_02_150405")
 	fileName := fmt.Sprintf("%s_%s.go", timestamp, toSnakeCase(migrationName))
 
@@ -113,17 +117,24 @@ func createMigration(migrationName, tableName string, isCreate bool, fieldList s
 		os.Exit(1)
 	}
 
+	// Detect database type from environment or config
+	cfg := config.Load()
+	dbType := string(cfg.Database.Type)
+	fmt.Printf("🗂️  Detected database: %s\n", dbType)
+
 	// Use the new parseFields function
 	parsedFields := parseFields(fieldList)
 
-	// Create migration data
+	// Create migration data with database type
 	data := MigrationData{
-		ClassName:   toPascalCase(migrationName),
-		TableName:   tableName,
-		Timestamp:   timestamp,
-		Description: migrationName,
-		Fields:      parsedFields,
-		Version:     fmt.Sprintf("%s_%s", timestamp, migrationName),
+		ClassName:    toPascalCase(migrationName),
+		TableName:    tableName,
+		Timestamp:    timestamp,
+		Description:  migrationName,
+		Fields:       parsedFields,
+		Version:      fmt.Sprintf("%s_%s", timestamp, migrationName),
+		DatabaseType: dbType,
+		Strategy:     *strategy,
 	}
 
 	// Create file
@@ -134,12 +145,14 @@ func createMigration(migrationName, tableName string, isCreate bool, fieldList s
 	}
 	defer file.Close()
 
-	// Choose template
+	// Choose template based on database type
 	var tmpl *template.Template
 	if isCreate && tableName != "" {
-		tmpl = template.Must(template.New("create_table").Funcs(templateFuncs).Parse(createTableTemplate))
+		templateContent := getCreateTableTemplate(dbType)
+		tmpl = template.Must(template.New("create_table").Funcs(templateFuncs).Parse(templateContent))
 	} else if tableName != "" {
-		tmpl = template.Must(template.New("alter_table").Funcs(templateFuncs).Parse(alterTableTemplate))
+		templateContent := getAlterTableTemplate(dbType)
+		tmpl = template.Must(template.New("alter_table").Funcs(templateFuncs).Parse(templateContent))
 	} else {
 		tmpl = template.Must(template.New("migration").Funcs(templateFuncs).Parse(migrationTemplate))
 	}
@@ -177,8 +190,8 @@ func createMigration(migrationName, tableName string, isCreate bool, fieldList s
 		}
 	}
 
-	// Auto-create entity if this is a create table migration
-	if isCreate && tableName != "" {
+	// Auto-create entity if this is a create table migration and not skipped
+	if isCreate && tableName != "" && !skipEntity {
 		fmt.Printf("\n🚀 Auto-creating entity...\n")
 		if err := autoCreateEntity(tableName, parsedFields); err != nil {
 			fmt.Printf("⚠️  Warning: Failed to create entity: %v\n", err)
@@ -206,11 +219,17 @@ func autoCreateEntity(tableName string, fields []Field) error {
 		return nil
 	}
 
-	// Create entity data
+	// Detect database type for entity template
+	cfg := config.Load()
+	dbType := string(cfg.Database.Type)
+
+	// Create entity data with database type
 	data := EntityData{
-		EntityName: entityName,
-		TableName:  tableName,
-		Fields:     fields,
+		EntityName:   entityName,
+		TableName:    tableName,
+		Fields:       fields,
+		DatabaseType: dbType,
+		Strategy:     *strategy,
 	}
 
 	// Create file
@@ -348,7 +367,7 @@ func createModel(modelName, table, fieldList string) {
 		fmt.Printf("📋 Auto-generated table: %s\n", tableName)
 	}
 
-	fileName := fmt.Sprintf("%s.go", strings.ToLower(entityName))
+	fileName := fmt.Sprintf("%s.go", toSnakeCase(entityName))
 
 	// Create entity directory if not exists
 	entityDir := "internal/entity"
@@ -368,11 +387,17 @@ func createModel(modelName, table, fieldList string) {
 	// Use enhanced parseFields function (same as migration)
 	parsedFields := parseFields(fieldList)
 
-	// Create entity data
+	// Detect database type for entity template
+	cfg := config.Load()
+	dbType := string(cfg.Database.Type)
+
+	// Create entity data with database type
 	data := EntityData{
-		EntityName: entityName,
-		TableName:  tableName, // Use specified or auto-generated table name
-		Fields:     parsedFields,
+		EntityName:   entityName,
+		TableName:    tableName, // Use specified or auto-generated table name
+		Fields:       parsedFields,
+		DatabaseType: dbType,
+		Strategy:     *strategy,
 	}
 
 	// Create file
@@ -556,6 +581,12 @@ func runMigrations() {
 
 	fmt.Printf("📊 Using %s database\n", cfg.Database.Type)
 
+	// Generate and load dynamic migrations registry
+	if err := generateDynamicMigrationsRegistry(); err != nil {
+		fmt.Printf("❌ Failed to generate migrations registry: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Run migrations
 	if err := db.RunMigrations(); err != nil {
 		fmt.Printf("❌ Migration failed: %v\n", err)
@@ -696,14 +727,22 @@ func showHelp() {
 	fmt.Println("  -table string      Table name")
 	fmt.Println("  -create            Create table migration")
 	fmt.Println("  -fields string     Fields (name:string,email:string)")
+	fmt.Println("  -strategy string   Primary key strategy: int, uuid, dual (default: int)")
 	fmt.Println("  -count int         Number of migrations to rollback (default: 1)")
+	fmt.Println("  -skip-entity       Skip auto-creating entity in migration (used internally)")
 	fmt.Println("")
 	fmt.Println("Examples:")
 	fmt.Println("  # Create table migration")
 	fmt.Println("  go run cmd/artisan/main.go -action=make:migration -name=create_users_table -create -table=users -fields=\"name:string,email:string\"")
 	fmt.Println("")
-	fmt.Println("  # Create entity model")
+	fmt.Println("  # Create entity model with default strategy (int)")
 	fmt.Println("  go run cmd/artisan/main.go -action=make:model -name=User -fields=\"name:string,email:string,age:int\"")
+	fmt.Println("")
+	fmt.Println("  # Create entity model with UUID strategy")
+	fmt.Println("  go run cmd/artisan/main.go -action=make:model -name=Product -strategy=uuid -fields=\"name:string,price:decimal\"")
+	fmt.Println("")
+	fmt.Println("  # Create entity model with dual strategy (int + UUID)")
+	fmt.Println("  go run cmd/artisan/main.go -action=make:model -name=Order -strategy=dual -fields=\"total:decimal,status:string\"")
 	fmt.Println("")
 	fmt.Println("  # Create package (handler, usecase, repository, port)")
 	fmt.Println("  go run cmd/artisan/main.go -action=make:package -name=Product")
@@ -730,12 +769,14 @@ func showHelp() {
 
 // Helper types and functions
 type MigrationData struct {
-	ClassName   string
-	TableName   string
-	Timestamp   string
-	Description string
-	Fields      []Field
-	Version     string
+	ClassName    string
+	TableName    string
+	Timestamp    string
+	Description  string
+	Fields       []Field
+	Version      string
+	DatabaseType string
+	Strategy     string
 }
 
 type Field struct {
@@ -754,9 +795,11 @@ type SeederData struct {
 }
 
 type EntityData struct {
-	EntityName string
-	TableName  string
-	Fields     []Field
+	EntityName   string
+	TableName    string
+	Fields       []Field
+	DatabaseType string
+	Strategy     string
 }
 
 type PackageData struct {
@@ -816,16 +859,22 @@ func parseFields(fieldList string) []Field {
 
 // Template functions
 var templateFuncs = template.FuncMap{
-	"toGoType":         toGoType,
-	"toPascalCase":     toPascalCase,
-	"toCamelCase":      toCamelCase,
-	"getGormTag":       getGormTag,
-	"getValidationTag": getValidationTag,
-	"hasDecimalField":  hasDecimalField,
-	"getStructName":    getStructName,
-	"hasIndexField":    hasIndexField,
-	"hasFKField":       hasFKField,
-	"toLowerFirst":     toLowerFirst,
+	"toGoType":                     toGoType,
+	"toPascalCase":                 toPascalCase,
+	"toCamelCase":                  toCamelCase,
+	"getGormTag":                   getGormTag,
+	"getValidationTag":             getValidationTag,
+	"hasDecimalField":              hasDecimalField,
+	"getStructName":                getStructName,
+	"hasIndexField":                hasIndexField,
+	"hasFKField":                   hasFKField,
+	"toLowerFirst":                 toLowerFirst,
+	"getCreatedAtTag":              getCreatedAtTag,
+	"getUpdatedAtTag":              getUpdatedAtTag,
+	"getPrimaryKeyFields":          getPrimaryKeyFields,
+	"getImportsForStrategy":        getImportsForStrategy,
+	"getBeforeCreateHook":          getBeforeCreateHook,
+	"getMigrationPrimaryKeyFields": getMigrationPrimaryKeyFields,
 }
 
 func toPascalCase(s string) string {
@@ -1045,6 +1094,294 @@ func toLowerFirst(s string) string {
 	return strings.ToLower(s[:1]) + s[1:]
 }
 
+// generateDynamicMigrationsRegistry generates a dynamic import file for migrations
+func generateDynamicMigrationsRegistry() error {
+	migrationsDir := "internal/migrations"
+
+	// Check if migrations directory exists
+	if _, err := os.Stat(migrationsDir); os.IsNotExist(err) {
+		fmt.Printf("⚠️  Migrations directory not found: %s\n", migrationsDir)
+		return nil
+	}
+
+	// Walk through migration files
+	migrationFiles := []string{}
+	err := filepath.WalkDir(migrationsDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Only process .go files that are not test files or generated files
+		if !d.IsDir() && strings.HasSuffix(path, ".go") &&
+			!strings.HasSuffix(path, "_test.go") &&
+			!strings.HasSuffix(path, "manager.go") &&
+			!strings.HasSuffix(path, "_generated.go") {
+			migrationFiles = append(migrationFiles, path)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to walk migrations directory: %w", err)
+	}
+
+	// Sort files to ensure consistent order
+	sort.Strings(migrationFiles)
+
+	fmt.Printf("🔍 Found %d migration files\n", len(migrationFiles))
+
+	// Generate dynamic import file
+	if err := generateMigrationImportFile(migrationFiles); err != nil {
+		return fmt.Errorf("failed to generate import file: %w", err)
+	}
+
+	return nil
+}
+
+// generateMigrationImportFile generates an import file that includes all migrations
+func generateMigrationImportFile(migrationFiles []string) error {
+	importFilePath := "internal/migrations/migrations_generated.go"
+
+	// Since all files are in the same package, we don't need explicit imports
+	// The generated file just serves as a registry
+
+	// Create the generated file content
+	content := `// Code generated by artisan CLI. DO NOT EDIT.
+package migrations
+
+// This file ensures all migration files are compiled together.
+// It's automatically generated when running migrations.
+
+`
+
+	// Add a simple reference to ensure all migration files are included
+	content += "// Migration files included in this package:\n"
+	for _, filePath := range migrationFiles {
+		fileName := filepath.Base(filePath)
+		content += fmt.Sprintf("// - %s\n", fileName)
+	}
+
+	content += `
+// Note: Migration registration happens via init() functions in individual files.
+`
+
+	// Write the file
+	if err := os.WriteFile(importFilePath, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write import file: %w", err)
+	}
+
+	fmt.Printf("✅ Generated migrations registry: %s\n", importFilePath)
+	return nil
+}
+
+// extractPackageNameFromFile extracts package name from a Go file
+func extractPackageNameFromFile(filePath string) string {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return ""
+	}
+
+	lines := strings.Split(string(content), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "package ") {
+			parts := strings.Fields(line)
+			if len(parts) >= 2 {
+				return parts[1]
+			}
+		}
+	}
+
+	return ""
+}
+
+// Database-specific template functions
+func getCreateTableTemplate(dbType string) string {
+	switch strings.ToLower(dbType) {
+	case "sqlite":
+		return createTableTemplateSQLite
+	case "mysql":
+		return createTableTemplateMySQL
+	case "postgresql", "postgres":
+		return createTableTemplatePostgreSQL
+	default:
+		return createTableTemplateSQLite // Default to SQLite for compatibility
+	}
+}
+
+func getAlterTableTemplate(dbType string) string {
+	switch strings.ToLower(dbType) {
+	case "sqlite":
+		return alterTableTemplateSQLite
+	case "mysql":
+		return alterTableTemplateMySQL
+	case "postgresql", "postgres":
+		return alterTableTemplatePostgreSQL
+	default:
+		return alterTableTemplateSQLite // Default to SQLite for compatibility
+	}
+}
+
+func getTimestampTags(dbType string) (string, string) {
+	switch strings.ToLower(dbType) {
+	case "sqlite":
+		return "autoCreateTime;not null", "autoUpdateTime;not null"
+	case "mysql":
+		return "autoCreateTime;not null;default:CURRENT_TIMESTAMP(3)", "autoUpdateTime;not null;default:CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)"
+	case "postgresql", "postgres":
+		return "autoCreateTime;not null;default:CURRENT_TIMESTAMP", "autoUpdateTime;not null;default:CURRENT_TIMESTAMP"
+	default:
+		return "autoCreateTime;not null", "autoUpdateTime;not null"
+	}
+}
+
+// Template helper functions for database-specific tags
+func getCreatedAtTag(data interface{}) string {
+	if entityData, ok := data.(EntityData); ok {
+		createdAtTag, _ := getTimestampTags(entityData.DatabaseType)
+		return createdAtTag
+	}
+	if migrationData, ok := data.(MigrationData); ok {
+		createdAtTag, _ := getTimestampTags(migrationData.DatabaseType)
+		return createdAtTag
+	}
+	// Default to SQLite-compatible tags
+	createdAtTag, _ := getTimestampTags("sqlite")
+	return createdAtTag
+}
+
+func getUpdatedAtTag(data interface{}) string {
+	if entityData, ok := data.(EntityData); ok {
+		_, updatedAtTag := getTimestampTags(entityData.DatabaseType)
+		return updatedAtTag
+	}
+	if migrationData, ok := data.(MigrationData); ok {
+		_, updatedAtTag := getTimestampTags(migrationData.DatabaseType)
+		return updatedAtTag
+	}
+	// Default to SQLite-compatible tags
+	_, updatedAtTag := getTimestampTags("sqlite")
+	return updatedAtTag
+}
+
+// Helper functions for primary key strategies
+func getPrimaryKeyFields(data interface{}) string {
+	var strategy string
+	switch d := data.(type) {
+	case EntityData:
+		strategy = d.Strategy
+	case MigrationData:
+		strategy = d.Strategy
+	default:
+		strategy = "int"
+	}
+
+	switch strategy {
+	case "uuid":
+		return `UUID      uuid.UUID ` + "`json:\"id\" gorm:\"type:varchar(36);primaryKey;not null\"`"
+	case "dual":
+		return `ID        int       ` + "`json:\"-\" gorm:\"primaryKey;autoIncrement\"`" + `
+	UUID      uuid.UUID ` + "`json:\"id\" gorm:\"type:varchar(36);not null\"`"
+	default: // "int"
+		return `ID        int       ` + "`json:\"id\" gorm:\"primaryKey;autoIncrement\"`"
+	}
+}
+
+func getImportsForStrategy(data interface{}, hasDecimalField bool) string {
+	var strategy string
+	switch d := data.(type) {
+	case EntityData:
+		strategy = d.Strategy
+	case MigrationData:
+		strategy = d.Strategy
+	default:
+		strategy = "int"
+	}
+
+	imports := `import (
+	"time"`
+
+	if strategy == "uuid" || strategy == "dual" {
+		imports += `
+
+	"github.com/google/uuid"`
+	}
+
+	if hasDecimalField {
+		imports += `
+	"github.com/shopspring/decimal"`
+	}
+
+	imports += `
+	"gorm.io/gorm"
+)`
+	return imports
+}
+
+func getBeforeCreateHook(data interface{}) string {
+	var strategy string
+	var entityName string
+	switch d := data.(type) {
+	case EntityData:
+		strategy = d.Strategy
+		entityName = d.EntityName
+	case MigrationData:
+		strategy = d.Strategy
+		entityName = getStructName(d.TableName)
+	default:
+		return ""
+	}
+
+	if strategy == "uuid" || strategy == "dual" {
+		return `
+// BeforeCreate is a hook that runs before creating a ` + entityName + `
+func (e *` + entityName + `) BeforeCreate(tx *gorm.DB) (err error) {
+	e.UUID = uuid.New()
+	return
+}`
+	}
+	return ""
+}
+
+// Get primary key fields for migration templates (database-specific)
+func getMigrationPrimaryKeyFields(data interface{}) string {
+	var strategy string
+	var dbType string
+	switch d := data.(type) {
+	case EntityData:
+		strategy = d.Strategy
+		dbType = d.DatabaseType
+	case MigrationData:
+		strategy = d.Strategy
+		dbType = d.DatabaseType
+	default:
+		strategy = "int"
+		dbType = "sqlite"
+	}
+
+	switch strategy {
+	case "uuid":
+		switch strings.ToLower(dbType) {
+		case "postgresql", "postgres":
+			return `UUID      uuid.UUID ` + "`gorm:\"type:uuid;primaryKey;not null;default:gen_random_uuid()\"`"
+		default: // SQLite, MySQL
+			return `UUID      uuid.UUID ` + "`gorm:\"type:varchar(36);primaryKey;not null\"`"
+		}
+	case "dual":
+		switch strings.ToLower(dbType) {
+		case "postgresql", "postgres":
+			return `ID        int       ` + "`gorm:\"primaryKey\"`" + `
+	UUID      uuid.UUID ` + "`gorm:\"type:uuid;not null;default:gen_random_uuid()\"`"
+		default: // SQLite, MySQL
+			return `ID        int       ` + "`gorm:\"primaryKey\"`" + `
+	UUID      uuid.UUID ` + "`gorm:\"type:varchar(36);not null\"`"
+		}
+	default: // "int"
+		return `ID        int       ` + "`gorm:\"primaryKey\"`"
+	}
+}
+
 // Templates
 const migrationTemplate = `package migrations
 
@@ -1083,22 +1420,14 @@ func init() {
 }
 `
 
-const createTableTemplate = `package migrations
+// SQLite-specific create table template
+const createTableTemplateSQLite = `package migrations
 
-import (
-	"time"
+{{getImportsForStrategy . (hasDecimalField .Fields)}}
 
-	"github.com/google/uuid"
-	"gorm.io/gorm"
-	{{- if hasDecimalField .Fields}}
-	"github.com/shopspring/decimal"
-	{{- end}}
-)
-
-// {{getStructName .TableName}} entity struct for migration
+// {{getStructName .TableName}} entity struct for migration (SQLite compatible)
 type {{getStructName .TableName}} struct {
-	ID        int       ` + "`gorm:\"primaryKey\"`" + `
-	UUID      uuid.UUID  ` + "`gorm:\"type:varchar(36);unique;index;not null\"`" + `
+	{{getMigrationPrimaryKeyFields .}}
 	{{- range .Fields}}
 	{{toPascalCase .Name}} {{toGoType .Type}} ` + "`gorm:\"{{getGormTag .}}\"`" + `
 	{{- end}}
@@ -1107,8 +1436,8 @@ type {{getStructName .TableName}} struct {
 	{{getStructName .FKReference}} {{getStructName .FKReference}} ` + "`json:\"{{getStructName .FKReference | toLowerFirst}},omitempty\" gorm:\"foreignKey:{{toPascalCase .Name}};references:ID\"`" + `
 	{{- end}}
 	{{- end}}
-	CreatedAt time.Time      ` + "`gorm:\"autoCreateTime;not null;default:CURRENT_TIMESTAMP(3)\"`" + `
-	UpdatedAt time.Time      ` + "`gorm:\"autoUpdateTime;not null;default:CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)\"`" + `
+	CreatedAt time.Time      ` + "`gorm:\"autoCreateTime;not null\"`" + `
+	UpdatedAt time.Time      ` + "`gorm:\"autoUpdateTime;not null\"`" + `
 	DeletedAt gorm.DeletedAt ` + "`gorm:\"index\"`" + `
 }
 
@@ -1117,7 +1446,7 @@ func ({{getStructName .TableName}}) TableName() string {
 	return "{{.TableName}}"
 }
 
-// {{.ClassName}} migration - Create {{.TableName}} table
+// {{.ClassName}} migration - Create {{.TableName}} table (SQLite)
 type {{.ClassName}} struct{}
 
 // Up creates the {{.TableName}} table using the {{getStructName .TableName}} struct
@@ -1146,7 +1475,118 @@ func init() {
 }
 `
 
-const alterTableTemplate = `package migrations
+// MySQL-specific create table template
+const createTableTemplateMySQL = `package migrations
+
+{{getImportsForStrategy . (hasDecimalField .Fields)}}
+
+// {{getStructName .TableName}} entity struct for migration (MySQL compatible)
+type {{getStructName .TableName}} struct {
+	{{getMigrationPrimaryKeyFields .}}
+	{{- range .Fields}}
+	{{toPascalCase .Name}} {{toGoType .Type}} ` + "`gorm:\"{{getGormTag .}}\"`" + `
+	{{- end}}
+	{{- range .Fields}}
+	{{- if .IsForeignKey}}
+	{{getStructName .FKReference}} {{getStructName .FKReference}} ` + "`json:\"{{getStructName .FKReference | toLowerFirst}},omitempty\" gorm:\"foreignKey:{{toPascalCase .Name}};references:ID\"`" + `
+	{{- end}}
+	{{- end}}
+	CreatedAt time.Time      ` + "`gorm:\"autoCreateTime;not null;default:CURRENT_TIMESTAMP(3)\"`" + `
+	UpdatedAt time.Time      ` + "`gorm:\"autoUpdateTime;not null;default:CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)\"`" + `
+	DeletedAt gorm.DeletedAt ` + "`gorm:\"index\"`" + `
+}
+
+// TableName returns the table name for GORM
+func ({{getStructName .TableName}}) TableName() string {
+	return "{{.TableName}}"
+}
+
+// {{.ClassName}} migration - Create {{.TableName}} table (MySQL)
+type {{.ClassName}} struct{}
+
+// Up creates the {{.TableName}} table using the {{getStructName .TableName}} struct
+func (m *{{.ClassName}}) Up(db *gorm.DB) error {
+	return db.AutoMigrate(&{{getStructName .TableName}}{})
+}
+
+// Down drops the {{.TableName}} table
+func (m *{{.ClassName}}) Down(db *gorm.DB) error {
+	return db.Migrator().DropTable(&{{getStructName .TableName}}{})
+}
+
+// Description returns migration description
+func (m *{{.ClassName}}) Description() string {
+	return "Create {{.TableName}} table"
+}
+
+// Version returns migration version
+func (m *{{.ClassName}}) Version() string {
+	return "{{.Version}}"
+}
+
+// Auto-register migration
+func init() {
+	Register(&{{.ClassName}}{})
+}
+`
+
+// PostgreSQL-specific create table template
+const createTableTemplatePostgreSQL = `package migrations
+
+{{getImportsForStrategy . (hasDecimalField .Fields)}}
+
+// {{getStructName .TableName}} entity struct for migration (PostgreSQL compatible)
+type {{getStructName .TableName}} struct {
+	{{getMigrationPrimaryKeyFields .}}
+	{{- range .Fields}}
+	{{toPascalCase .Name}} {{toGoType .Type}} ` + "`gorm:\"{{getGormTag .}}\"`" + `
+	{{- end}}
+	{{- range .Fields}}
+	{{- if .IsForeignKey}}
+	{{getStructName .FKReference}} {{getStructName .FKReference}} ` + "`json:\"{{getStructName .FKReference | toLowerFirst}},omitempty\" gorm:\"foreignKey:{{toPascalCase .Name}};references:ID\"`" + `
+	{{- end}}
+	{{- end}}
+	CreatedAt time.Time      ` + "`gorm:\"autoCreateTime;not null;default:CURRENT_TIMESTAMP\"`" + `
+	UpdatedAt time.Time      ` + "`gorm:\"autoUpdateTime;not null;default:CURRENT_TIMESTAMP\"`" + `
+	DeletedAt gorm.DeletedAt ` + "`gorm:\"index\"`" + `
+}
+
+// TableName returns the table name for GORM
+func ({{getStructName .TableName}}) TableName() string {
+	return "{{.TableName}}"
+}
+
+// {{.ClassName}} migration - Create {{.TableName}} table (PostgreSQL)
+type {{.ClassName}} struct{}
+
+// Up creates the {{.TableName}} table using the {{getStructName .TableName}} struct
+func (m *{{.ClassName}}) Up(db *gorm.DB) error {
+	return db.AutoMigrate(&{{getStructName .TableName}}{})
+}
+
+// Down drops the {{.TableName}} table
+func (m *{{.ClassName}}) Down(db *gorm.DB) error {
+	return db.Migrator().DropTable(&{{getStructName .TableName}}{})
+}
+
+// Description returns migration description
+func (m *{{.ClassName}}) Description() string {
+	return "Create {{.TableName}} table"
+}
+
+// Version returns migration version
+func (m *{{.ClassName}}) Version() string {
+	return "{{.Version}}"
+}
+
+// Auto-register migration
+func init() {
+	Register(&{{.ClassName}}{})
+}
+`
+
+// SQLite-specific alter table template
+const alterTableTemplateSQLite = `package migrations
 
 import (
 	"gorm.io/gorm"
@@ -1155,7 +1595,135 @@ import (
 	{{- end}}
 )
 
-// {{.ClassName}} migration - Modify {{.TableName}} table
+// {{.ClassName}} migration - Modify {{.TableName}} table (SQLite)
+type {{.ClassName}} struct{}
+
+{{- range .Fields}}
+// {{.ClassName}}{{toPascalCase .Name}} represents the new column structure
+type {{$.ClassName}}{{toPascalCase .Name}} struct {
+	{{toPascalCase .Name}} {{toGoType .Type}} ` + "`gorm:\"{{getGormTag .}}\"`" + `
+}
+
+func ({{$.ClassName}}{{toPascalCase .Name}}) TableName() string {
+	return "{{$.TableName}}"
+}
+{{- end}}
+
+// Up adds columns to the {{.TableName}} table
+func (m *{{.ClassName}}) Up(db *gorm.DB) error {
+	{{- range .Fields}}
+	// Add {{.Name}} column
+	if err := db.Migrator().AddColumn(&{{$.ClassName}}{{toPascalCase .Name}}{}, "{{.Name}}"); err != nil {
+		return err
+	}
+	{{- end}}
+	
+	return nil
+}
+
+// Down removes columns from the {{.TableName}} table
+func (m *{{.ClassName}}) Down(db *gorm.DB) error {
+	{{- range .Fields}}
+	// Drop {{.Name}} column
+	if err := db.Migrator().DropColumn(&{{$.ClassName}}{{toPascalCase .Name}}{}, "{{.Name}}"); err != nil {
+		return err
+	}
+	{{- end}}
+	
+	return nil
+}
+
+// Description returns migration description
+func (m *{{.ClassName}}) Description() string {
+	return "{{.Description}}"
+}
+
+// Version returns migration version
+func (m *{{.ClassName}}) Version() string {
+	return "{{.Version}}"
+}
+
+// Auto-register migration
+func init() {
+	Register(&{{.ClassName}}{})
+}
+`
+
+// MySQL-specific alter table template
+const alterTableTemplateMySQL = `package migrations
+
+import (
+	"gorm.io/gorm"
+	{{- if hasDecimalField .Fields}}
+	"github.com/shopspring/decimal"
+	{{- end}}
+)
+
+// {{.ClassName}} migration - Modify {{.TableName}} table (MySQL)
+type {{.ClassName}} struct{}
+
+{{- range .Fields}}
+// {{.ClassName}}{{toPascalCase .Name}} represents the new column structure
+type {{$.ClassName}}{{toPascalCase .Name}} struct {
+	{{toPascalCase .Name}} {{toGoType .Type}} ` + "`gorm:\"{{getGormTag .}}\"`" + `
+}
+
+func ({{$.ClassName}}{{toPascalCase .Name}}) TableName() string {
+	return "{{$.TableName}}"
+}
+{{- end}}
+
+// Up adds columns to the {{.TableName}} table
+func (m *{{.ClassName}}) Up(db *gorm.DB) error {
+	{{- range .Fields}}
+	// Add {{.Name}} column
+	if err := db.Migrator().AddColumn(&{{$.ClassName}}{{toPascalCase .Name}}{}, "{{.Name}}"); err != nil {
+		return err
+	}
+	{{- end}}
+	
+	return nil
+}
+
+// Down removes columns from the {{.TableName}} table
+func (m *{{.ClassName}}) Down(db *gorm.DB) error {
+	{{- range .Fields}}
+	// Drop {{.Name}} column
+	if err := db.Migrator().DropColumn(&{{$.ClassName}}{{toPascalCase .Name}}{}, "{{.Name}}"); err != nil {
+		return err
+	}
+	{{- end}}
+	
+	return nil
+}
+
+// Description returns migration description
+func (m *{{.ClassName}}) Description() string {
+	return "{{.Description}}"
+}
+
+// Version returns migration version
+func (m *{{.ClassName}}) Version() string {
+	return "{{.Version}}"
+}
+
+// Auto-register migration
+func init() {
+	Register(&{{.ClassName}}{})
+}
+`
+
+// PostgreSQL-specific alter table template
+const alterTableTemplatePostgreSQL = `package migrations
+
+import (
+	"gorm.io/gorm"
+	{{- if hasDecimalField .Fields}}
+	"github.com/shopspring/decimal"
+	{{- end}}
+)
+
+// {{.ClassName}} migration - Modify {{.TableName}} table (PostgreSQL)
 type {{.ClassName}} struct{}
 
 {{- range .Fields}}
@@ -1284,20 +1852,11 @@ func init() {
 // Fix entityTemplate - add association fields like createTableTemplate
 const entityTemplate = `package entity
 
-import (
-	"time"
-
-	"github.com/google/uuid"
-	{{- if hasDecimalField .Fields}}
-	"github.com/shopspring/decimal"
-	{{- end}}
-	"gorm.io/gorm"
-)
+{{getImportsForStrategy . (hasDecimalField .Fields)}}
 
 // {{.EntityName}} represents a {{.EntityName}} entity
 type {{.EntityName}} struct {
-	ID        int       ` + "`json:\"-\" gorm:\"primaryKey\"`" + `
-	UUID      uuid.UUID  ` + "`json:\"uuid\" gorm:\"type:varchar(36);unique;index;not null\"`" + `
+	{{getPrimaryKeyFields .}}
 	{{- range .Fields}}
 	{{toPascalCase .Name}} {{toGoType .Type}} ` + "`json:\"{{.Name}}\" gorm:\"{{getGormTag .}}\"`" + `
 	{{- end}}
@@ -1306,21 +1865,15 @@ type {{.EntityName}} struct {
 	{{getStructName .FKReference}} {{getStructName .FKReference}} ` + "`json:\"{{getStructName .FKReference | toLowerFirst}},omitempty\" gorm:\"foreignKey:{{toPascalCase .Name}};references:ID\"`" + `
 	{{- end}}
 	{{- end}}
-	CreatedAt time.Time      ` + "`json:\"created_at\" gorm:\"autoCreateTime;default:CURRENT_TIMESTAMP(3);not null\"`" + `
-	UpdatedAt time.Time      ` + "`json:\"updated_at\" gorm:\"autoUpdateTime;default:CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3);not null\"`" + `
+	CreatedAt time.Time      ` + "`json:\"created_at\" gorm:\"{{getCreatedAtTag .}}\"`" + `
+	UpdatedAt time.Time      ` + "`json:\"updated_at\" gorm:\"{{getUpdatedAtTag .}}\"`" + `
 	DeletedAt gorm.DeletedAt ` + "`json:\"-\" gorm:\"index\"`" + `
 }
 
 // TableName returns the table name for GORM
 func ({{.EntityName}}) TableName() string {
 	return "{{.TableName}}"
-}
-
-// BeforeCreate is a hook that runs before creating a {{.EntityName}}
-func (e *{{.EntityName}}) BeforeCreate(tx *gorm.DB) (err error) {
-	e.UUID = uuid.New()
-	return
-}
+}{{getBeforeCreateHook .}}
 
 // Create{{.EntityName}}Request represents a request to create a {{.EntityName}}
 type Create{{.EntityName}}Request struct {

@@ -36,3 +36,9 @@ func SetGlobalManager(manager *migration.Manager) {
 func Register(migrationInstance Migration) {
 	migration.Register(migrationInstance)
 }
+
+// ลงทะเบียน migrations ทั้งหมดใน package นี้
+func init() {
+	// Manual registration will be handled by generated migrations_generated.go
+	// migration.Register(&CreateUsersTable{})
+}

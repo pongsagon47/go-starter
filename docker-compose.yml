@@ -1,7 +1,7 @@
 services:
-  flex-postgres:
+  postgres:
     image: postgres:15-alpine
-    container_name: flex-service-db
+    container_name: project-db
     environment:
       POSTGRES_DB: ${DB_NAME:-go_clean_gin}
       POSTGRES_USER: ${DB_USER:-postgres}
@@ -23,7 +23,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: flex-service-redis
+    container_name: project-redis
     ports:
       - "6379:6379"
     volumes:
@@ -41,7 +41,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: flex-service-app
+    container_name: project-app
     ports:
       - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
     depends_on:

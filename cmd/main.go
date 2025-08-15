@@ -47,7 +47,10 @@ func main() {
 	}
 
 	// Initialize dependency injection container (includes database setup)
-	containerInstance := container.NewContainer(cfg)
+	containerInstance, err := container.NewContainer(cfg)
+	if err != nil {
+		logger.Fatal("Failed to create container", zap.Error(err))
+	}
 
 	// Run migrations if in development mode
 	if cfg.Env == "development" {

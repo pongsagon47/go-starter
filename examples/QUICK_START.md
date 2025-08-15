@@ -52,7 +52,7 @@ make db-seed
 # Stop current server (Ctrl+C)
 
 # Setup MySQL in .env
-export DB_TYPE=mysql
+export DB_DRIVER=mysql
 export DB_MYSQL_HOST=localhost
 export DB_MYSQL_NAME=my_api
 
@@ -68,7 +68,7 @@ make run
 # Stop current server (Ctrl+C)
 
 # Setup PostgreSQL in .env
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 export DB_POSTGRES_HOST=localhost
 export DB_POSTGRES_NAME=my_api
 

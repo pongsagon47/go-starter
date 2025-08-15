@@ -166,7 +166,7 @@ type SQLiteConfig struct {
 
 ```env
 # Database type selection
-DB_TYPE=mysql  # mysql, postgresql, sqlite
+DB_DRIVER=mysql  # mysql, postgresql, sqlite
 
 # MySQL configuration
 DB_MYSQL_HOST=localhost
@@ -253,17 +253,17 @@ gormDB := db.GetDB()
 
 ```go
 // Development with SQLite
-os.Setenv("DB_TYPE", "sqlite")
+os.Setenv("DB_DRIVER", "sqlite")
 cfg := config.Load()
 db, _ := factory.CreateDatabase(cfg.GetDatabaseConfig())
 
 // Staging with MySQL
-os.Setenv("DB_TYPE", "mysql")
+os.Setenv("DB_DRIVER", "mysql")
 cfg = config.Load()
 db, _ = factory.CreateDatabase(cfg.GetDatabaseConfig())
 
 // Production with PostgreSQL
-os.Setenv("DB_TYPE", "postgresql")
+os.Setenv("DB_DRIVER", "postgresql")
 cfg = config.Load()
 db, _ = factory.CreateDatabase(cfg.GetDatabaseConfig())
 ```
@@ -410,11 +410,11 @@ if err := db.ListSeeders(); err != nil {
 // Use different databases for different environments
 switch os.Getenv("ENV") {
 case "development":
-    os.Setenv("DB_TYPE", "sqlite")
+    os.Setenv("DB_DRIVER", "sqlite")
 case "staging":
-    os.Setenv("DB_TYPE", "mysql")
+    os.Setenv("DB_DRIVER", "mysql")
 case "production":
-    os.Setenv("DB_TYPE", "postgresql")
+    os.Setenv("DB_DRIVER", "postgresql")
 }
 ```
 

@@ -33,7 +33,7 @@ This example shows how to deploy Go Starter in production with different databas
 
 ```bash
 # Production with PostgreSQL
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 export DB_POSTGRES_HOST=prod-db.company.com
 export DB_POSTGRES_PORT=5432
 export DB_POSTGRES_NAME=app_production
@@ -53,13 +53,13 @@ make build
 
 ```bash
 # Development
-DB_TYPE=sqlite make migrate && make test
+DB_DRIVER=sqlite make migrate && make test
 
 # Staging
-DB_TYPE=mysql make migrate && make test-integration
+DB_DRIVER=mysql make migrate && make test-integration
 
 # Production
-DB_TYPE=postgresql make migrate && make deploy
+DB_DRIVER=postgresql make migrate && make deploy
 ```
 
 ### **Strategy 3: Multi-Region Deployment**
@@ -68,15 +68,15 @@ DB_TYPE=postgresql make migrate && make deploy
 
 ```bash
 # US Region - PostgreSQL
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 export DB_POSTGRES_HOST=us-east-1-postgres.company.com
 
 # EU Region - PostgreSQL
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 export DB_POSTGRES_HOST=eu-west-1-postgres.company.com
 
 # Asia Region - PostgreSQL
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 export DB_POSTGRES_HOST=ap-southeast-1-postgres.company.com
 ```
 
@@ -123,7 +123,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DB_TYPE=postgresql
+      - DB_DRIVER=postgresql
       - DB_POSTGRES_HOST=postgres
       - DB_POSTGRES_NAME=app_production
       - DB_POSTGRES_USER=app_user
@@ -200,7 +200,7 @@ spec:
           ports:
             - containerPort: 8080
           env:
-            - name: DB_TYPE
+            - name: DB_DRIVER
               value: "postgresql"
             - name: DB_POSTGRES_HOST
               value: "postgres-service"
@@ -264,7 +264,7 @@ export SERVER_PORT=8080
 export LOG_LEVEL=info
 
 # Database
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 export DB_POSTGRES_HOST=${POSTGRES_HOST}
 export DB_POSTGRES_PORT=5432
 export DB_POSTGRES_NAME=app_production
@@ -423,7 +423,7 @@ jobs:
 
       - name: Test with ${{ matrix.db }}
         run: |
-          export DB_TYPE=${{ matrix.db }}
+          export DB_DRIVER=${{ matrix.db }}
           make test
 
   deploy:

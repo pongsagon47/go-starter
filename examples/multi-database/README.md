@@ -8,19 +8,19 @@ This directory contains practical examples of using Go Starter with different da
 
 ```bash
 # Development with SQLite
-export DB_TYPE=sqlite
+export DB_DRIVER=sqlite
 make migrate
 make db-seed
 make run
 
 # Staging with MySQL
-export DB_TYPE=mysql
+export DB_DRIVER=mysql
 make migrate
 make db-seed
 make run
 
 # Production with PostgreSQL
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 make migrate
 make db-seed
 make run
@@ -52,9 +52,9 @@ make db-postgres db-seed
 make test-all-db
 
 # Manual testing
-DB_TYPE=sqlite make migrate-status
-DB_TYPE=mysql make migrate-status
-DB_TYPE=postgresql make migrate-status
+DB_DRIVER=sqlite make migrate-status
+DB_DRIVER=mysql make migrate-status
+DB_DRIVER=postgresql make migrate-status
 ```
 
 ## 📋 Detailed Examples
@@ -80,7 +80,7 @@ See: [testing-example.md](./testing-example.md)
 ### **SQLite (Development)**
 
 ```env
-DB_TYPE=sqlite
+DB_DRIVER=sqlite
 DB_SQLITE_FILE_PATH=./dev.db
 DB_SQLITE_FOREIGN_KEYS=true
 DB_SQLITE_JOURNAL=WAL
@@ -89,7 +89,7 @@ DB_SQLITE_JOURNAL=WAL
 ### **MySQL (Staging)**
 
 ```env
-DB_TYPE=mysql
+DB_DRIVER=mysql
 DB_MYSQL_HOST=staging-mysql.company.com
 DB_MYSQL_PORT=3306
 DB_MYSQL_USER=staging_user
@@ -101,7 +101,7 @@ DB_MYSQL_SSL_MODE=require
 ### **PostgreSQL (Production)**
 
 ```env
-DB_TYPE=postgresql
+DB_DRIVER=postgresql
 DB_POSTGRES_HOST=prod-postgres.company.com
 DB_POSTGRES_PORT=5432
 DB_POSTGRES_USER=prod_user

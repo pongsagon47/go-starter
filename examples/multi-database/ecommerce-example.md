@@ -52,7 +52,7 @@ make make-seeder NAME=OrderItemSeeder TABLE=order_items DEPS="OrderSeeder"
 
 ```bash
 # Setup development environment
-export DB_TYPE=sqlite
+export DB_DRIVER=sqlite
 export DB_SQLITE_FILE_PATH=./ecommerce_dev.db
 
 # Run migrations and seeders
@@ -73,7 +73,7 @@ make dev
 
 ```bash
 # Setup staging environment
-export DB_TYPE=mysql
+export DB_DRIVER=mysql
 export DB_MYSQL_HOST=staging-mysql.company.com
 export DB_MYSQL_NAME=ecommerce_staging
 export DB_MYSQL_USER=staging_user
@@ -97,7 +97,7 @@ make test
 
 ```bash
 # Setup production environment
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 export DB_POSTGRES_HOST=prod-postgres.company.com
 export DB_POSTGRES_NAME=ecommerce_prod
 export DB_POSTGRES_USER=prod_user
@@ -199,7 +199,7 @@ ALTER TABLE products ADD COLUMN tags TEXT[];
 
 ```bash
 # Fast unit tests with in-memory SQLite
-export DB_TYPE=sqlite
+export DB_DRIVER=sqlite
 export DB_SQLITE_IN_MEMORY=true
 make test
 ```
@@ -208,7 +208,7 @@ make test
 
 ```bash
 # Integration tests with MySQL
-export DB_TYPE=mysql
+export DB_DRIVER=mysql
 export DB_MYSQL_NAME=ecommerce_test
 make test-integration
 ```
@@ -217,7 +217,7 @@ make test-integration
 
 ```bash
 # Performance tests with PostgreSQL
-export DB_TYPE=postgresql
+export DB_DRIVER=postgresql
 export DB_POSTGRES_NAME=ecommerce_perf
 make test-performance
 ```
@@ -234,7 +234,7 @@ jobs:
   test-sqlite:
     runs-on: ubuntu-latest
     env:
-      DB_TYPE: sqlite
+      DB_DRIVER: sqlite
       DB_SQLITE_IN_MEMORY: true
     steps:
       - uses: actions/checkout@v2
@@ -250,7 +250,7 @@ jobs:
           MYSQL_ROOT_PASSWORD: test
           MYSQL_DATABASE: ecommerce_test
     env:
-      DB_TYPE: mysql
+      DB_DRIVER: mysql
       DB_MYSQL_HOST: localhost
       DB_MYSQL_NAME: ecommerce_test
       DB_MYSQL_USER: root
@@ -264,7 +264,7 @@ jobs:
     needs: [test-sqlite, test-mysql]
     runs-on: ubuntu-latest
     env:
-      DB_TYPE: postgresql
+      DB_DRIVER: postgresql
     steps:
       - uses: actions/checkout@v2
       - name: Deploy to production
@@ -296,7 +296,7 @@ jobs:
 ### **Development (.env.development)**
 
 ```env
-DB_TYPE=sqlite
+DB_DRIVER=sqlite
 DB_SQLITE_FILE_PATH=./ecommerce_dev.db
 DB_SQLITE_FOREIGN_KEYS=true
 LOG_LEVEL=debug
@@ -305,7 +305,7 @@ LOG_LEVEL=debug
 ### **Staging (.env.staging)**
 
 ```env
-DB_TYPE=mysql
+DB_DRIVER=mysql
 DB_MYSQL_HOST=staging-db.company.com
 DB_MYSQL_NAME=ecommerce_staging
 DB_MYSQL_USER=staging_user
@@ -316,7 +316,7 @@ LOG_LEVEL=info
 ### **Production (.env.production)**
 
 ```env
-DB_TYPE=postgresql
+DB_DRIVER=postgresql
 DB_POSTGRES_HOST=prod-db.company.com
 DB_POSTGRES_NAME=ecommerce_prod
 DB_POSTGRES_USER=prod_user

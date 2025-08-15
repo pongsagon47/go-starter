@@ -22,7 +22,25 @@ import "go-starter/pkg/errors"
 
 ## ⚡ Quick Start
 
-### Basic Error Usage
+### Basic Error Usage (Old Way)
+
+```go
+// Traditional way - verbose
+func findUser(id string) (*User, error) {
+    if id == "" {
+        return nil, errors.New(errors.ErrBadRequest, "User ID is required", 400)
+    }
+
+    user := getUserFromDB(id)
+    if user == nil {
+        return nil, errors.New(errors.ErrNotFound, "User not found", 404)
+    }
+
+    return user, nil
+}
+```
+
+### New Helper Functions (Recommended)
 
 ```go
 package main
@@ -34,18 +52,29 @@ import (
 
 func findUser(id string) (*User, error) {
     if id == "" {
-        return nil, errors.ErrBadRequestError.WithDetails(map[string]interface{}{
-            "field": "id",
-            "reason": "User ID is required",
-        })
+        return nil, errors.BadRequest("User ID is required")
     }
 
     user := getUserFromDB(id)
     if user == nil {
-        return nil, errors.ErrNotFoundError.WithDetails(map[string]interface{}{
-            "resource": "user",
-            "id": id,
-        })
+        return nil, errors.UserNotFound()
+    }
+
+    return user, nil
+}
+
+func authenticateUser(email, password string) (*User, error) {
+    user, err := getUserByEmail(email)
+    if err != nil {
+        return nil, errors.WrapDatabase(err, "Failed to find user")
+    }
+
+    if !verifyPassword(password, user.Password) {
+        return nil, errors.InvalidCredentials()
+    }
+
+    if !user.IsActive {
+        return nil, errors.AccountDisabled()
     }
 
     return user, nil
@@ -129,6 +158,71 @@ const (
     ErrUserExists         = "USER_EXISTS"
     ErrUserNotFound       = "USER_NOT_FOUND"
 )
+```
+
+## 🚀 Helper Functions (NEW)
+
+### **Convenience Functions**
+
+| Function            | Description             | Status Code | Example                                     |
+| ------------------- | ----------------------- | ----------- | ------------------------------------------- |
+| `NotFound(msg)`     | Resource not found      | 404         | `errors.NotFound("User not found")`         |
+| `BadRequest(msg)`   | Invalid input           | 400         | `errors.BadRequest("Invalid email format")` |
+| `Unauthorized(msg)` | Authentication required | 401         | `errors.Unauthorized("Login required")`     |
+| `Forbidden(msg)`    | Permission denied       | 403         | `errors.Forbidden("Admin access required")` |
+| `Conflict(msg)`     | Resource conflict       | 409         | `errors.Conflict("Email already exists")`   |
+| `Internal(msg)`     | Server error            | 500         | `errors.Internal("Service unavailable")`    |
+| `Validation(msg)`   | Validation failed       | 400         | `errors.Validation("Invalid input data")`   |
+
+### **Wrapping Functions**
+
+| Function                     | Description          | Use Case                  |
+| ---------------------------- | -------------------- | ------------------------- |
+| `WrapInternal(err, msg)`     | Wrap as server error | Database failures         |
+| `WrapNotFound(err, msg)`     | Wrap as not found    | Query returned no results |
+| `WrapBadRequest(err, msg)`   | Wrap as bad request  | Parsing failures          |
+| `WrapUnauthorized(err, msg)` | Wrap as unauthorized | Token validation failures |
+
+### **Database-specific Helpers**
+
+| Function                 | Description               | Status Code |
+| ------------------------ | ------------------------- | ----------- |
+| `DatabaseError(msg)`     | Database operation failed | 500         |
+| `WrapDatabase(err, msg)` | Wrap database error       | 500         |
+
+### **Auth-specific Helpers**
+
+| Function                   | Description             | Status Code |
+| -------------------------- | ----------------------- | ----------- |
+| `InvalidCredentials()`     | Wrong login credentials | 401         |
+| `TokenExpired()`           | JWT token expired       | 401         |
+| `TokenInvalid()`           | Invalid JWT token       | 401         |
+| `UserExists(field)`        | User already exists     | 409         |
+| `UserNotFound()`           | User not found          | 404         |
+| `AccountDisabled()`        | Account is disabled     | 401         |
+| `TokenError(msg)`          | Token operation failed  | 500         |
+| `WrapTokenError(err, msg)` | Wrap token error        | 500         |
+
+### **Helper Functions Usage Examples**
+
+```go
+// Before (verbose)
+return nil, errors.New(errors.ErrNotFound, "User not found", 404)
+
+// After (clean)
+return nil, errors.UserNotFound()
+
+// Before (complex wrapping)
+return nil, errors.Wrap(err, "DATABASE_ERROR", "failed to get user", 500)
+
+// After (simple)
+return nil, errors.WrapDatabase(err, "failed to get user")
+
+// Before (manual auth errors)
+return nil, errors.New(errors.ErrInvalidCredentials, "Invalid email or password", 401)
+
+// After (predefined)
+return nil, errors.InvalidCredentials()
 ```
 
 ## 🛠️ Creating Custom Errors
