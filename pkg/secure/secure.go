@@ -6,8 +6,8 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"go-starter/config"
 	"fmt"
+	"go-starter/config"
 	"io"
 )
 

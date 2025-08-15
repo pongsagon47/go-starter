@@ -11,14 +11,14 @@ import (
 	"gopkg.in/gomail.v2"
 )
 
-// Mailer provides basic email functionality without complex caching
-type Mailer struct {
+// SimpleMailer provides basic email functionality without complex caching
+type SimpleMailer struct {
 	dialer *gomail.Dialer
 	config *config.EmailConfig
 }
 
-// NewGomail creates a new mailer instance
-func NewGomail(cfg *config.EmailConfig) (*Mailer, error) {
+// NewSimpleMailer creates a new simple mailer instance
+func NewSimpleMailer(cfg *config.EmailConfig) (*SimpleMailer, error) {
 	if cfg.From == "" {
 		return nil, fmt.Errorf("email from address is required")
 	}
@@ -29,14 +29,14 @@ func NewGomail(cfg *config.EmailConfig) (*Mailer, error) {
 		ServerName:         cfg.Host,
 	}
 
-	return &Mailer{
+	return &SimpleMailer{
 		dialer: d,
 		config: cfg,
 	}, nil
 }
 
 // SendEmail sends a plain text email
-func (m *Mailer) SendEmail(to []string, subject, body string, attachments []string) error {
+func (m *SimpleMailer) SendEmail(to []string, subject, body string, attachments []string) error {
 	if len(to) == 0 {
 		return fmt.Errorf("no recipients specified")
 	}
@@ -56,7 +56,7 @@ func (m *Mailer) SendEmail(to []string, subject, body string, attachments []stri
 }
 
 // SendHTMLEmail sends an HTML email
-func (m *Mailer) SendHTMLEmail(to []string, subject, htmlBody string, attachments []string) error {
+func (m *SimpleMailer) SendHTMLEmail(to []string, subject, htmlBody string, attachments []string) error {
 	if len(to) == 0 {
 		return fmt.Errorf("no recipients specified")
 	}
@@ -76,7 +76,7 @@ func (m *Mailer) SendHTMLEmail(to []string, subject, htmlBody string, attachment
 }
 
 // SendTemplate sends an email using a template file (simplified - no caching)
-func (m *Mailer) SendTemplate(to []string, subject, templateName string, data interface{}, attachments []string) error {
+func (m *SimpleMailer) SendTemplate(to []string, subject, templateName string, data interface{}, attachments []string) error {
 	if len(to) == 0 {
 		return fmt.Errorf("no recipients specified")
 	}
@@ -103,7 +103,7 @@ func (m *Mailer) SendTemplate(to []string, subject, templateName string, data in
 }
 
 // TestConnection tests the SMTP connection
-func (m *Mailer) TestConnection() error {
+func (m *SimpleMailer) TestConnection() error {
 	// Create a test message without sending
 	msg := gomail.NewMessage()
 	msg.SetHeader("From", m.config.From)

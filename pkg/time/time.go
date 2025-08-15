@@ -16,7 +16,7 @@ var (
 // InitTimezone initializes the default timezone for the application
 func InitTimezone(timezone string) error {
 	if timezone == "" {
-		timezone = "Asia/Bangkok" // Default fallback
+		timezone = "UTC" // Default fallback
 	}
 
 	location, err := time.LoadLocation(timezone)
@@ -86,16 +86,6 @@ func Format(t time.Time, layout string) string {
 	return ToLocal(t).Format(layout)
 }
 
-func FormatThaiDate(t time.Time) string {
-	year := t.Year() + 543
-	return fmt.Sprintf("%d/%02d/%02d", t.Day(), t.Month(), year)
-}
-
-func FormatThaiDateTime(t time.Time) string {
-	year := t.Year() + 543
-	return fmt.Sprintf("%d/%02d/%02d %02d:%02d:%02d", t.Day(), t.Month(), year, t.Hour(), t.Minute(), t.Second())
-}
-
 // FormatNow formats current time in configured timezone
 func FormatNow(layout string) string {
 	return Now().Format(layout)
@@ -113,11 +103,10 @@ func EndOfDay(t time.Time) time.Time {
 	return Date(local.Year(), local.Month(), local.Day(), 23, 59, 59, 999999999)
 }
 
-// Common layout constants for Thailand
+// Common layout constants
 const (
 	DateLayout     = "2006-01-02"
 	TimeLayout     = "15:04:05"
 	DateTimeLayout = "2006-01-02 15:04:05"
-	ThaiDateLayout = "02/01/2006"
 	ISO8601Layout  = "2006-01-02T15:04:05Z07:00"
 )
