@@ -24,13 +24,14 @@ func (e *AppError) Error() string {
 // Error codes
 const (
 	// General errors
-	ErrInternal     = "INTERNAL_ERROR"
-	ErrNotFound     = "NOT_FOUND"
-	ErrBadRequest   = "BAD_REQUEST"
-	ErrUnauthorized = "UNAUTHORIZED"
-	ErrForbidden    = "FORBIDDEN"
-	ErrConflict     = "CONFLICT"
-	ErrValidation   = "VALIDATION_ERROR"
+	ErrInternal        = "INTERNAL_ERROR"
+	ErrNotFound        = "NOT_FOUND"
+	ErrBadRequest      = "BAD_REQUEST"
+	ErrUnauthorized    = "UNAUTHORIZED"
+	ErrForbidden       = "FORBIDDEN"
+	ErrConflict        = "CONFLICT"
+	ErrValidation      = "VALIDATION_ERROR"
+	ErrTooManyRequests = "TOO_MANY_REQUESTS"
 
 	// Auth errors
 	ErrInvalidCredentials = "INVALID_CREDENTIALS"
@@ -137,6 +138,22 @@ func Validation(message string) *AppError {
 		message = "Validation failed"
 	}
 	return New(ErrValidation, message, http.StatusBadRequest)
+}
+
+// TooManyRequests creates a too many requests error
+func TooManyRequests(message string) *AppError {
+	if message == "" {
+		message = "Too many requests"
+	}
+	return New(ErrTooManyRequests, message, http.StatusTooManyRequests)
+}
+
+// WrapTooManyRequests wraps an error as too many requests error
+func WrapTooManyRequests(err error, message string) *AppError {
+	if message == "" {
+		message = "Too many requests"
+	}
+	return Wrap(err, ErrTooManyRequests, message, http.StatusTooManyRequests)
 }
 
 // =============================================================================

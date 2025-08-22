@@ -1,25 +1,25 @@
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: project-db
-    environment:
-      POSTGRES_DB: ${DB_NAME:-go_clean_gin}
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
-      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
-    ports:
-      - "${DB_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./migrations:/docker-entrypoint-initdb.d
-    networks:
-      - app-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-go_clean_gin}"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: project-db
+  #   environment:
+  #     POSTGRES_DB: ${DB_NAME:-go_clean_gin}
+  #     POSTGRES_USER: ${DB_USER:-postgres}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+  #     POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+  #   ports:
+  #     - "${DB_PORT:-5432}:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./migrations:/docker-entrypoint-initdb.d
+  #   networks:
+  #     - app-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-go_clean_gin}"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
   redis:
     image: redis:7-alpine
@@ -37,42 +37,42 @@ services:
       timeout: 10s
       retries: 3
 
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: project-app
-    ports:
-      - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-password}
-      DB_NAME: ${DB_NAME:-go_clean_gin}
-      DB_SSLMODE: disable
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET}
-      SERVER_PORT: ${SERVER_PORT:-8080}
-      ENV: ${ENV:-development}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      LOG_FORMAT: ${LOG_FORMAT:-json}
-    volumes:
-      - ./logs:/app/logs
-    networks:
-      - app-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${SERVER_PORT:-8080}/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: project-app
+  #   ports:
+  #     - "${SERVER_PORT:-8080}:${SERVER_PORT:-8080}"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   environment:
+  #     DB_HOST: postgres
+  #     DB_PORT: 5432
+  #     DB_USER: ${DB_USER:-postgres}
+  #     DB_PASSWORD: ${DB_PASSWORD:-password}
+  #     DB_NAME: ${DB_NAME:-go_clean_gin}
+  #     DB_SSLMODE: disable
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     JWT_SECRET: ${JWT_SECRET}
+  #     SERVER_PORT: ${SERVER_PORT:-8080}
+  #     ENV: ${ENV:-development}
+  #     LOG_LEVEL: ${LOG_LEVEL:-info}
+  #     LOG_FORMAT: ${LOG_FORMAT:-json}
+  #   volumes:
+  #     - ./logs:/app/logs
+  #   networks:
+  #     - app-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:${SERVER_PORT:-8080}/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
 volumes:
   postgres_data:

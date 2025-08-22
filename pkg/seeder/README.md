@@ -16,8 +16,8 @@ Laravel-style database seeding system with dependency resolution, batch processi
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/seeder"
+# Already included in flex-service
+import "flex-service/pkg/seeder"
 ```
 
 ## ⚡ Quick Start
@@ -37,8 +37,8 @@ make make-seeder NAME=UserSeeder TABLE=users
 package seeders
 
 import (
-    "go-starter/internal/entity"
-    "go-starter/pkg/seeder"
+    "flex-service/internal/entity"
+    "flex-service/pkg/seeder"
     "gorm.io/gorm"
     "time"
 )
@@ -146,8 +146,8 @@ make make-seeder NAME=OrderSeeder TABLE=orders DEPS="UserSeeder,ProductSeeder"
 package seeders
 
 import (
-    "go-starter/internal/entity"
-    "go-starter/pkg/seeder"
+    "flex-service/internal/entity"
+    "flex-service/pkg/seeder"
     "gorm.io/gorm"
 )
 

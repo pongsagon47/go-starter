@@ -16,8 +16,8 @@ Laravel-style database migration system with version control, rollback support, 
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/migration"
+# Already included in flex-service
+import "flex-service/pkg/migration"
 ```
 
 ## ⚡ Quick Start
@@ -37,7 +37,7 @@ make make-migration NAME=create_users_table CREATE=true TABLE=users
 package migrations
 
 import (
-    "go-starter/pkg/migration"
+    "flex-service/pkg/migration"
     "gorm.io/gorm"
 )
 
@@ -138,7 +138,7 @@ make make-migration NAME=update_user_indexes
 package migrations
 
 import (
-    "go-starter/pkg/migration"
+    "flex-service/pkg/migration"
     "gorm.io/gorm"
     "time"
 )

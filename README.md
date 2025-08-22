@@ -50,8 +50,8 @@ A production-ready Go starter template with **multi-database support** (MySQL, P
 
 ```bash
 # Clone and setup
-git clone https://github.com/pongsagon47/go-starter.git go-starter
-cd go-starter
+git clone https://github.com/pongsagon47/flex-service.git flex-service
+cd flex-service
 
 # Install dependencies and setup
 make setup
@@ -243,7 +243,7 @@ make db-seed-specific NAME=ProductSeeder
 ## 🏗️ Project Structure
 
 ```
-go-starter/
+flex-service/
 ├── cmd/
 │   ├── main.go                 # Application entry point
 │   └── artisan/main.go         # Laravel-style CLI tool
@@ -520,7 +520,7 @@ The included `Dockerfile` creates an optimized production image:
 
 ```env
 # Application
-APP_NAME=go-starter
+APP_NAME=flex-service
 ENV=development
 TIMEZONE=Asia/Bangkok
 

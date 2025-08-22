@@ -8,8 +8,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"flex-service/config"
 	"fmt"
-	"go-starter/config"
 )
 
 var (

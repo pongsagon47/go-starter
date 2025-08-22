@@ -16,8 +16,8 @@ Standardized HTTP response utilities for consistent API responses with JSON form
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/response"
+# Already included in flex-service
+import "flex-service/pkg/response"
 ```
 
 ## ⚡ Quick Start
@@ -28,7 +28,7 @@ import "go-starter/pkg/response"
 package main
 
 import (
-    "go-starter/pkg/response"
+    "flex-service/pkg/response"
     "github.com/gin-gonic/gin"
 )
 

@@ -17,8 +17,8 @@ High-performance Redis caching system with helper functions and tag-based cache 
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/cache"
+# Already included in flex-service
+import "flex-service/pkg/cache"
 ```
 
 ## ⚡ Quick Start
@@ -31,8 +31,8 @@ package main
 import (
     "context"
     "time"
-    "go-starter/pkg/cache"
-    "go-starter/config"
+    "flex-service/pkg/cache"
+    "flex-service/config"
 )
 
 func main() {
@@ -187,7 +187,7 @@ type RedisConfig struct {
 ```go
 type CacheConfig struct {
     DefaultTTL time.Duration // Default expiration (default: 1 hour)
-    KeyPrefix  string        // Key prefix (default: "go-starter:")
+    KeyPrefix  string        // Key prefix (default: "flex-service:")
 }
 ```
 

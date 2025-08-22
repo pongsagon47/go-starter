@@ -3,9 +3,9 @@ package router
 import (
 	"time"
 
-	"go-starter/internal/container"
-	"go-starter/internal/middleware"
-	"go-starter/pkg/response"
+	"flex-service/internal/container"
+	"flex-service/internal/middleware"
+	"flex-service/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,9 +27,7 @@ func SetupRouter(container *container.Container) *gin.Engine {
 	router.Use(middleware.Helmet())
 
 	// Rate limiting middleware (only if Redis cache is available)
-	if container.Cache != nil {
-		router.Use(middleware.IPRateLimit(container.Cache, 100, time.Minute))
-	}
+	router.Use(container.RateLimit.IPRateLimit(container.Cache, 100, time.Minute))
 	router.Use(middleware.ErrorHandler())
 
 	// Health check endpoint
@@ -70,55 +68,23 @@ func SetupRouter(container *container.Container) *gin.Engine {
 	// API v1 routes
 	v1 := router.Group("/api/v1")
 	{
-		// Authentication routes (public)
-		// authRoutes := v1.Group("/auth")
-		// {
-		// 	authRoutes.POST("/register", container.AuthHandler.Register)
-		// 	authRoutes.POST("/login", container.AuthHandler.Login)
-		// 	authRoutes.POST("/refresh", container.AuthHandler.RefreshToken)
-		// }
+		userAuthRoutes := v1.Group("/user-auth")
+		{
+			// ปรับให้เข้มงวดขึ้น (5 ครั้ง/15 นาที แทน 30 ครั้ง/15 นาที)
+			userAuthRoutes.POST("/login", container.RateLimit.LoginRateLimit(container.Cache, 5, 15*time.Minute), container.UserAuthHandler.Login)
+			userAuthRoutes.POST("/login-social", container.RateLimit.LoginRateLimit(container.Cache, 5, 15*time.Minute), container.UserAuthHandler.LoginWithSocialAccount)
+			userAuthRoutes.POST("/register", container.RateLimit.RegisterRateLimit(container.Cache, 15, 1*time.Hour), container.UserAuthHandler.Register)
+			userAuthRoutes.POST("/register-social", container.RateLimit.RegisterRateLimit(container.Cache, 15, 1*time.Hour), container.UserAuthHandler.RegisterWithSocialAccount)
+			userAuthRoutes.POST("/refresh", container.RateLimit.IPRateLimit(container.Cache, 10, 1*time.Minute), container.UserAuthHandler.RefreshToken)
 
-		// Protected routes (require authentication)
-		// protected := v1.Group("/")
-		// protected.Use(auth.AuthMiddleware(*container.JWT))
-		// {
-		// 	Auth related protected routes
-		// 	authProtected := protected.Group("/auth")
-		// 	{
-		// 		authProtected.POST("/logout", container.AuthHandler.Logout)
-		// 		authProtected.GET("/me", container.AuthHandler.Me)
-		// 	}
-
-		// 	Add other protected routes here
-		// 	Example:
-		// 	users := protected.Group("/users")
-		// 	{
-		// 	    users.GET("/", container.UserHandler.List)
-		// 	    users.GET("/:id", container.UserHandler.GetByID)
-		// 	    users.PUT("/:id", container.UserHandler.Update)
-		// 	    users.DELETE("/:id", container.UserHandler.Delete)
-		// 	}
-		// }
-
-		// Demo endpoint (public)
-		v1.GET("/demo", func(c *gin.Context) {
-			response.Success(c, 200, "Demo endpoint", gin.H{
-				"message": "This is a demo endpoint for the starter project",
-				"authentication_endpoints": gin.H{
-					"register": "POST /api/v1/auth/register",
-					"login":    "POST /api/v1/auth/login",
-					"refresh":  "POST /api/v1/auth/refresh",
-					"logout":   "POST /api/v1/auth/logout (requires auth)",
-					"me":       "GET /api/v1/auth/me (requires auth)",
-				},
-				"tips": []string{
-					"Use make make-package NAME=User to create a complete package",
-					"Use make make-migration to create database migrations",
-					"Use make make-seeder to create database seeders",
-					"Check the README.md for more commands",
-				},
-			})
-		})
+			// Protected routes with user-based rate limiting
+			userAuthProtected := userAuthRoutes.Group("/")
+			userAuthProtected.Use(middleware.UserAuthenticate(container.UserAuthUsecase))
+			{
+				userAuthProtected.POST("/logout", container.RateLimit.UserRateLimit(container.Cache, 10, 1*time.Minute), container.UserAuthHandler.Logout)
+				userAuthProtected.GET("/me", container.RateLimit.UserRateLimit(container.Cache, 30, 1*time.Minute), container.UserAuthHandler.Me)
+			}
+		}
 	}
 
 	return router

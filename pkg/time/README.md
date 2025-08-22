@@ -15,8 +15,8 @@ Timezone-aware time utilities for consistent time handling across different envi
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/time"
+# Already included in flex-service
+import "flex-service/pkg/time"
 ```
 
 ## ⚡ Quick Start
@@ -28,7 +28,7 @@ package main
 
 import (
     "fmt"
-    apptime "go-starter/pkg/time"
+    apptime "flex-service/pkg/time"
     "time"
 )
 

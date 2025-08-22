@@ -2,13 +2,15 @@ package container
 
 import (
 	"context"
-	"go-starter/config"
-	pkgAuth "go-starter/pkg/auth"
-	"go-starter/pkg/cache"
-	"go-starter/pkg/database"
-	"go-starter/pkg/logger"
-	"go-starter/pkg/mail"
-	"go-starter/pkg/secure"
+	"flex-service/config"
+	"flex-service/internal/user_auth"
+
+	"flex-service/pkg/cache"
+	"flex-service/pkg/database"
+	"flex-service/pkg/logger"
+	"flex-service/pkg/mail"
+	"flex-service/pkg/rate_limit"
+	"flex-service/pkg/secure"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -19,16 +21,19 @@ type Container struct {
 	Config *config.Config
 
 	// Core infrastructure
-	Database database.Database
-	Cache    cache.Cache
-	Mail     *mail.Mailer
-	Secure   *secure.Secure
-	JWT      *pkgAuth.JWT
+	Database  database.Database
+	Cache     cache.Cache
+	Mail      *mail.Mailer
+	Secure    *secure.Secure
+	RateLimit rate_limit.RateLimit
 
 	// Backward compatibility (deprecated, use Database interface instead)
 	DB *gorm.DB
 
 	// Application services (registered via ServiceRegistry)
+	UserAuthRepo    user_auth.UserAuthRepository
+	UserAuthUsecase user_auth.UserAuthUsecase
+	UserAuthHandler *user_auth.UserAuthHandler
 }
 
 // NewContainer creates a new container with all dependencies using the factory pattern
@@ -45,13 +50,13 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 
 	// Create container with core dependencies
 	container := &Container{
-		Config:   cfg,
-		Database: deps.Database,
-		Cache:    deps.Cache,
-		Mail:     deps.Mail,
-		Secure:   deps.Secure,
-		JWT:      deps.JWT,
-		DB:       deps.Database.GetDB(), // Backward compatibility
+		Config:    cfg,
+		Database:  deps.Database,
+		Cache:     deps.Cache,
+		Mail:      deps.Mail,
+		Secure:    deps.Secure,
+		DB:        deps.Database.GetDB(), // Backward compatibility
+		RateLimit: deps.RateLimit,
 	}
 
 	// Register application services
@@ -96,11 +101,6 @@ func (c *Container) GetMail() *mail.Mailer {
 // GetSecure returns the secure instance
 func (c *Container) GetSecure() *secure.Secure {
 	return c.Secure
-}
-
-// GetJWT returns the JWT instance
-func (c *Container) GetJWT() *pkgAuth.JWT {
-	return c.JWT
 }
 
 // GetDatabaseType returns the current database type

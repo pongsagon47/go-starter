@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"go-starter/pkg/logger"
+	"flex-service/pkg/logger"
 
 	"go.uber.org/zap"
 	"gorm.io/gorm"

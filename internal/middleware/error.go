@@ -3,9 +3,9 @@ package middleware
 import (
 	"net/http"
 
-	"go-starter/pkg/errors"
-	"go-starter/pkg/logger"
-	"go-starter/pkg/response"
+	"flex-service/pkg/errors"
+	"flex-service/pkg/logger"
+	"flex-service/pkg/response"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

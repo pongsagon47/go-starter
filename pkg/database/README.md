@@ -17,8 +17,8 @@ Multi-database support with unified interface for MySQL, PostgreSQL, and SQLite 
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/database"
+# Already included in flex-service
+import "flex-service/pkg/database"
 ```
 
 ## ⚡ Quick Start
@@ -29,8 +29,8 @@ import "go-starter/pkg/database"
 package main
 
 import (
-    "go-starter/pkg/database"
-    "go-starter/config"
+    "flex-service/pkg/database"
+    "flex-service/config"
 )
 
 func main() {

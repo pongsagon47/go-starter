@@ -57,6 +57,6 @@ type CacheConfig struct {
 func DefaultCacheConfig() *CacheConfig {
 	return &CacheConfig{
 		DefaultTTL: 1 * time.Hour,
-		KeyPrefix:  "go-starter:",
+		KeyPrefix:  "flex-service:",
 	}
 }

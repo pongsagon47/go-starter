@@ -3,7 +3,7 @@ package middleware
 import (
 	"bytes"
 	"encoding/json"
-	"go-starter/pkg/logger"
+	"flex-service/pkg/logger"
 	"io"
 	"regexp"
 

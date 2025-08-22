@@ -3,8 +3,8 @@ package mail
 import (
 	"bytes"
 	"crypto/tls"
+	"flex-service/config"
 	"fmt"
-	"go-starter/config"
 	"html/template"
 	"path/filepath"
 

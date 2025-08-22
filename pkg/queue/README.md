@@ -16,8 +16,8 @@ Redis-based background job queue system with priority support, delayed jobs, ret
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/queue"
+# Already included in flex-service
+import "flex-service/pkg/queue"
 ```
 
 ## ⚡ Quick Start
@@ -30,7 +30,7 @@ package main
 import (
     "context"
     "time"
-    "go-starter/pkg/queue"
+    "flex-service/pkg/queue"
 )
 
 func main() {

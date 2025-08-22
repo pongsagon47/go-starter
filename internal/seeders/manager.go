@@ -3,7 +3,7 @@
 package seeders
 
 import (
-	"go-starter/pkg/seeder"
+	"flex-service/pkg/seeder"
 
 	"gorm.io/gorm"
 )

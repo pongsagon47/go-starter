@@ -7,7 +7,7 @@
 .PHONY: db-mysql db-postgres db-sqlite test-all-db
 
 # Variables
-APP_NAME=go-starter
+APP_NAME=flex-service
 DOCKER_IMAGE=$(APP_NAME):latest
 SERVER_PORT?=8080
 # DB_DRIVER?=mysql
@@ -575,6 +575,8 @@ examples:
 	@echo ""
 	@echo "  # Create table migration with strategy"
 	@echo "  make make-migration NAME=create_posts_table CREATE=true TABLE=posts STRATEGY=dual FIELDS=\"title:string,content:text\""
+	@echo "  # Create table migration with strategy and foreign key"
+	@echo "  make make-migration NAME=create_posts_table CREATE=true TABLE=tb_posts STRATEGY=dual FIELDS=\"title:string,user_id:int|fk:tb_user\""
 	@echo ""
 	@echo "📝 Adding Columns & Indexes:"
 	@echo "  make add-column TABLE=users COLUMN=phone TYPE=string"

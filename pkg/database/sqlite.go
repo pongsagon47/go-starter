@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"go-starter/pkg/logger"
-	"go-starter/pkg/migration"
-	"go-starter/pkg/seeder"
+	"flex-service/pkg/logger"
+	"flex-service/pkg/migration"
+	"flex-service/pkg/seeder"
 
 	"go.uber.org/zap"
 	"gorm.io/driver/sqlite"

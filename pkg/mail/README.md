@@ -15,8 +15,8 @@ Simple email sending system with template support and SMTP configuration.
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/mail"
+# Already included in flex-service
+import "flex-service/pkg/mail"
 ```
 
 ## ⚡ Quick Start
@@ -27,8 +27,8 @@ import "go-starter/pkg/mail"
 package main
 
 import (
-    "go-starter/pkg/mail"
-    "go-starter/config"
+    "flex-service/pkg/mail"
+    "flex-service/config"
 )
 
 func main() {

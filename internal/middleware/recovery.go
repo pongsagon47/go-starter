@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"go-starter/pkg/logger"
+	"flex-service/pkg/logger"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

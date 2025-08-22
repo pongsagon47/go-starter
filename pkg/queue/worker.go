@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"go-starter/pkg/logger"
+	"flex-service/pkg/logger"
 
 	"go.uber.org/zap"
 )

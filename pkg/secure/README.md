@@ -16,8 +16,8 @@ AES-256-CBC encryption/decryption utilities with HMAC authentication for securin
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/secure"
+# Already included in flex-service
+import "flex-service/pkg/secure"
 ```
 
 ## ⚡ Quick Start
@@ -29,8 +29,8 @@ package main
 
 import (
     "fmt"
-    "go-starter/pkg/secure"
-    "go-starter/config"
+    "flex-service/pkg/secure"
+    "flex-service/config"
 )
 
 func main() {

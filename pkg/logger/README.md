@@ -15,8 +15,8 @@ Structured logging system built on Uber's Zap library with configurable levels, 
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/logger"
+# Already included in flex-service
+import "flex-service/pkg/logger"
 ```
 
 ## ⚡ Quick Start
@@ -27,7 +27,7 @@ import "go-starter/pkg/logger"
 package main
 
 import (
-    "go-starter/pkg/logger"
+    "flex-service/pkg/logger"
     "go.uber.org/zap"
 )
 

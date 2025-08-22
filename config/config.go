@@ -7,22 +7,23 @@ import (
 	"strings"
 	"time"
 
-	"go-starter/pkg/database"
+	"flex-service/pkg/database"
 
 	"github.com/joho/godotenv"
 )
 
 type Config struct {
-	Database MultiDatabaseConfig
-	Server   ServerConfig
-	JWT      JWTConfig
-	Log      LogConfig
-	Email    EmailConfig
-	Secure   SecureConfig
-	Redis    RedisConfig
-	Env      string
-	AppName  string
-	Timezone string
+	Database  MultiDatabaseConfig
+	Server    ServerConfig
+	JWT       JWTConfig
+	Log       LogConfig
+	Email     EmailConfig
+	Secure    SecureConfig
+	Redis     RedisConfig
+	Env       string
+	AppName   string
+	Timezone  string
+	Ratelimit RatelimitConfig
 }
 
 // MultiDatabaseConfig supports multiple database configurations
@@ -133,6 +134,11 @@ type RedisConfig struct {
 	WriteTimeout time.Duration
 }
 
+type RatelimitConfig struct {
+	Limit  int
+	Window time.Duration
+}
+
 func Load() *Config {
 	// Load .env file
 	if err := godotenv.Load(); err != nil {
@@ -231,8 +237,14 @@ func Load() *Config {
 			ReadTimeout:  getEnvAsDuration("REDIS_READ_TIMEOUT", 3*time.Second),
 			WriteTimeout: getEnvAsDuration("REDIS_WRITE_TIMEOUT", 3*time.Second),
 		},
+
+		Ratelimit: RatelimitConfig{
+			Limit:  getEnvAsInt("RATELIMIT_LIMIT", 100),
+			Window: getEnvAsDuration("RATELIMIT_WINDOW", 1*time.Minute),
+		},
+
 		Env:      getEnv("ENV", "development"),
-		AppName:  getEnv("APP_NAME", "go-starter"),
+		AppName:  getEnv("APP_NAME", "flex-service"),
 		Timezone: getEnv("TIMEZONE", "Asia/Bangkok"),
 	}
 }

@@ -1,16 +1,15 @@
 package container
 
 import (
-	"errors"
-	"go-starter/config"
-	pkgAuth "go-starter/pkg/auth"
-	"go-starter/pkg/cache"
-	"go-starter/pkg/database"
-	"go-starter/pkg/logger"
-	"go-starter/pkg/mail"
-	"go-starter/pkg/secure"
-	"time"
+	"flex-service/config"
+	"flex-service/pkg/cache"
+	"flex-service/pkg/database"
+	"flex-service/pkg/logger"
+	"flex-service/pkg/mail"
+	"flex-service/pkg/rate_limit"
+	"flex-service/pkg/secure"
 
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -114,35 +113,25 @@ func (f *ContainerFactory) CreateSecure() (*secure.Secure, error) {
 	return secure, nil
 }
 
-// CreateJWT creates JWT instance from configuration
-func (f *ContainerFactory) CreateJWT() (*pkgAuth.JWT, error) {
-	if f.config.JWT.Secret == "" {
-		return nil, errors.New("JWT secret is required")
+// CreateRateLimit creates rate limit instance
+
+func (f *ContainerFactory) CreateRateLimit(cache cache.Cache) (rate_limit.RateLimit, error) {
+	rateLimitConfig := &rate_limit.RateLimitConfig{
+		Limit:  f.config.Ratelimit.Limit,
+		Window: f.config.Ratelimit.Window,
+		Skip: func(c *gin.Context) bool {
+			return f.config.Env == "development"
+		},
 	}
 
-	// Use configured TTL values with defaults
-	accessHours := f.config.JWT.ExpirationHours
-	if accessHours == 0 {
-		accessHours = 24 // default 24 hours
+	rateLimit, err := rate_limit.NewRateLimit(cache, rateLimitConfig)
+	if err != nil {
+		logger.Error("Failed to create rate limit instance", zap.Error(err))
+		return nil, err
 	}
-	accessTTL := time.Duration(accessHours) * time.Hour
 
-	refreshHours := f.config.JWT.RefreshExpirationHours
-	if refreshHours == 0 {
-		refreshHours = 720 // default 30 days (720 hours)
-	}
-	refreshTTL := time.Duration(refreshHours) * time.Hour
-
-	issuer := f.config.AppName // Default issuer (could be made configurable later)
-
-	jwt := pkgAuth.NewJWT(f.config.JWT.Secret, accessTTL, refreshTTL, issuer)
-
-	logger.Info("JWT instance created successfully",
-		zap.Duration("access_ttl", accessTTL),
-		zap.Duration("refresh_ttl", refreshTTL),
-		zap.String("issuer", issuer))
-
-	return jwt, nil
+	logger.Info("Rate limit instance created successfully")
+	return rateLimit, nil
 }
 
 // CreateAll creates all dependencies at once
@@ -174,8 +163,8 @@ func (f *ContainerFactory) CreateAll() (*AllDependencies, error) {
 		return nil, err
 	}
 
-	// Create JWT (required)
-	deps.JWT, err = f.CreateJWT()
+	// Create rate limit (required)
+	deps.RateLimit, err = f.CreateRateLimit(deps.Cache)
 	if err != nil {
 		return nil, err
 	}
@@ -185,9 +174,9 @@ func (f *ContainerFactory) CreateAll() (*AllDependencies, error) {
 
 // AllDependencies holds all created dependencies
 type AllDependencies struct {
-	Database database.Database
-	Cache    cache.Cache
-	Mail     *mail.Mailer
-	Secure   *secure.Secure
-	JWT      *pkgAuth.JWT
+	Database  database.Database
+	Cache     cache.Cache
+	Mail      *mail.Mailer
+	Secure    *secure.Secure
+	RateLimit rate_limit.RateLimit
 }

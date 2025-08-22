@@ -1,6 +1,6 @@
 # 📦 Container Package
 
-Modern dependency injection container with Factory Pattern, Service Registry, and Interface-based design for the go-starter project.
+Modern dependency injection container with Factory Pattern, Service Registry, and Interface-based design for the flex-service project.
 
 ## 📋 Table of Contents
 
@@ -131,9 +131,9 @@ type Container struct {
 package main
 
 import (
-    "go-starter/config"
-    "go-starter/internal/container"
-    "go-starter/pkg/logger"
+    "flex-service/config"
+    "flex-service/internal/container"
+    "flex-service/pkg/logger"
 )
 
 func main() {

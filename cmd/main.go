@@ -9,16 +9,16 @@ import (
 	"syscall"
 	"time"
 
-	"go-starter/config"
-	"go-starter/internal/container"
-	"go-starter/internal/router"
-	"go-starter/pkg/logger"
+	"flex-service/config"
+	"flex-service/internal/container"
+	"flex-service/internal/router"
+	"flex-service/pkg/logger"
 
-	appTime "go-starter/pkg/time"
+	appTime "flex-service/pkg/time"
 
 	// Import to register migrations and seeders
-	_ "go-starter/internal/migrations"
-	_ "go-starter/internal/seeders"
+	_ "flex-service/internal/migrations"
+	_ "flex-service/internal/seeders"
 
 	"go.uber.org/zap"
 )
@@ -53,18 +53,18 @@ func main() {
 	}
 
 	// Run migrations if in development mode
-	if cfg.Env == "development" {
-		logger.Info("Running migrations in development mode")
-		if err := containerInstance.RunMigrations(); err != nil {
-			logger.Warn("Failed to run migrations", zap.Error(err))
-		}
+	// if cfg.Env == "development" {
+	// 	logger.Info("Running migrations in development mode")
+	// 	if err := containerInstance.RunMigrations(); err != nil {
+	// 		logger.Warn("Failed to run migrations", zap.Error(err))
+	// 	}
 
-		// Seed data in development
-		logger.Info("Running seeders in development mode")
-		if err := containerInstance.SeedData(""); err != nil {
-			logger.Warn("Failed to seed data", zap.Error(err))
-		}
-	}
+	// 	// Seed data in development
+	// 	logger.Info("Running seeders in development mode")
+	// 	if err := containerInstance.SeedData(""); err != nil {
+	// 		logger.Warn("Failed to seed data", zap.Error(err))
+	// 	}
+	// }
 
 	// Setup routes
 	routerInstance := router.SetupRouter(containerInstance)

@@ -3,7 +3,7 @@
 package migrations
 
 import (
-	"go-starter/pkg/migration"
+	"flex-service/pkg/migration"
 
 	"gorm.io/gorm"
 )

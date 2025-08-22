@@ -16,8 +16,8 @@ Structured error handling with consistent error codes, HTTP status mapping, and 
 ## 🚀 Installation
 
 ```bash
-# Already included in go-starter
-import "go-starter/pkg/errors"
+# Already included in flex-service
+import "flex-service/pkg/errors"
 ```
 
 ## ⚡ Quick Start
@@ -47,7 +47,7 @@ package main
 
 import (
     "fmt"
-    "go-starter/pkg/errors"
+    "flex-service/pkg/errors"
 )
 
 func findUser(id string) (*User, error) {

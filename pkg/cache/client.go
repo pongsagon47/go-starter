@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"go-starter/config"
+	"flex-service/config"
 
 	"github.com/go-redis/redis/v8"
 )
